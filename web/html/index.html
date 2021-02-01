@@ -1,0 +1,218 @@
+<!doctype html>
+<html>
+  <head>
+    <title>WebSSH Client</title>
+
+    
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+
+    <link rel="stylesheet" href="node_modules/xterm/dist/xterm.css" />
+
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+   
+
+    <!-- Xterm.js -->
+    <script src="node_modules/xterm/dist/xterm.js"></script>
+    <script src="node_modules/xterm/dist/addons/fit/fit.js"></script>
+    <script src="node_modules/xterm/dist/addons/search/search.js"></script>
+    <script src="node_modules/xterm/dist/addons/webLinks/webLinks.js"></script> 
+
+  
+    <script src="wasm_exec.js"></script>
+    <script type="text/javascript">
+function fetchAndInstantiate(url, importObject) {
+  return fetch(url).then(response =>
+    response.arrayBuffer()
+  ).then(bytes =>
+    WebAssembly.instantiate(bytes, importObject)
+  ).then(results =>
+      results.instance
+  );
+}
+var go = new Go();
+var mod = fetchAndInstantiate("/main.wasm", go.importObject);
+window.onload = function() {
+  mod.then(function(instance) {
+    go.run(instance);
+  });
+  notReady = function() {
+    return  $("portInp").val() == "" || $('#hostInp').val() == "" || $('#usrInp').val() == "" ||
+      ($('#passInp').val() == "" && $('#pkInp').val() == "")
+  }
+  pkFileOpen = function(evt) {
+    const input = event.target
+    if ('files' in input && input.files.length > 0) {
+      console.log("open" + input.files[0])
+	    placeFileContent(document.getElementById('pkInp'), input.files[0])
+    }
+  }
+
+  function placeFileContent(target, file) {
+    readFileContent(file).then(content => {
+      target.value = content
+      $('#conBtn').prop('disabled', notReady() ? true : false); 
+    }).catch(error => console.log(error))
+  }
+
+  function readFileContent(file) {
+    const reader = new FileReader()
+    return new Promise((resolve, reject) => {
+      reader.onload = event => resolve(event.target.result)
+      reader.onerror = error => reject(error)
+      reader.readAsText(file)
+    })
+  }
+
+  showServerKey = function(key) {
+    $('#fingerprintMsg').html("RSA key fingerprint is " + key + " <br>Are you sure you want to continue connecting (yes/no)?")
+    $('#fingerprintModal').modal('show')
+  }
+
+  connected = function(status) {
+    $('#conPan').hide();
+    $('#conInf').html(status);
+    $("#fbFrame").attr("src","browser.html");
+  }
+
+  $(document).ready(function(){
+    $('#conBtn').prop('disabled',true);
+    $('#hostInp').keyup(function(){ $('#conBtn').prop('disabled', notReady() ? true : false); })
+    $('#portInp').keyup(function(){ $('#conBtn').prop('disabled', notReady() ? true : false); })
+    $('#usrInp').keyup(function(){ $('#conBtn').prop('disabled', notReady() ? true : false); })
+    $('#passInp').keyup(function(){ $('#conBtn').prop('disabled', notReady() ? true : false); })
+    $('#pkInp').keyup(function(){ $('#conBtn').prop('disabled', notReady() ? true : false); })
+    $('#pkFile').change(pkFileOpen);
+  });
+  var home = "/";
+
+};
+
+    </script>
+    <style>
+      #canvas {
+        width: 500px;
+        height: 300px;
+      }
+
+      .iframe-container {
+  overflow: hidden;
+  padding-top: 56.25%;
+  position: relative;
+}
+ 
+.iframe-container iframe {
+   border: 0;
+   height: 100%;
+   left: 0;
+   position: absolute;
+   top: 0;
+   width: 100%;
+}
+
+.row {
+  padding-top: 5px;
+}
+    </style>
+  </head>
+  <body>
+      <div id="fingerprintModal" class="modal" tabindex="-1" role="dialog">
+          <div class="modal-dialog" role="document">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title">Server fingerprint</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close" onclick="acceptFingerprint(false);">
+                  <span aria-hidden="true">&times;</span>
+                </button>
+              </div>
+              <div id="fingerprintMsg" class="modal-body">
+                
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-primary" data-dismiss="modal"   onclick="acceptFingerprint(true);">Yes</button>
+                <button type="button" class="btn btn-secondary" data-dismiss="modal" onclick="acceptFingerprint(false);">No</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      
+    <div class="container" > 
+      <div class="row" >  
+        <div id="conInf" class="col-11 align-self-center" > 
+          
+        </div>
+        <div id="conPan" class="container col-11 align-self-center" > 
+          <div class="row" >
+            <input id="hostInp" type="text" placeholder="Host to Connect" class="form-control col-10" value="testssh">
+            <input id="portInp" type="number" placeholder="Port" class="form-control col-2" value="22">
+          </div>
+          <div class="row">
+              <input id="usrInp" type="text" placeholder="User" class="form-control col-4" value="root">
+              <input id="passInp" type="password" placeholder="Password" class="form-control col-8" value="root">
+          </div>
+          <div class="row">
+            <textarea id="pkInp" rows=1 placeholder="Private Key" class="form-control col-9"></textarea>
+            <label class="btn btn-link col-3">
+                Select key file <input id="pkFile" type="file" hidden>
+            </label>
+          </div>
+          <div class="row"> 
+              <button id="conBtn" type="button" class="btn btn-primary col-3" 
+                onclick="initConnection(term.rows, term.cols,$('#hostInp').val(),Number($('#portInp').val()),$('#usrInp').val(),$('#passInp').val(),$('#pkInp').val());">Connect</button>
+          </div>
+        </div>
+      </div>
+      <div class="row"> 
+          <div id="terminal" class="col-12"></div>
+      </div>
+      <div class="row col-10 offset-md-1"> 
+            <input id="searchTxt" type="text" placeholder="Find" class="form-control col-md-3" >       
+            <div class="col-md-2" style="padding-left: 20pt;padding-top: 7px;">
+              <label class="form-check-label"> <input type="checkbox" class="form-check-input" id="matchCaseChb" >Match Case</label>
+            </div>
+            <button type="button" class="btn btn-link col-md-2" onclick="term.findNext($('#searchTxt').val(),{caseSensitive:  $('#matchCaseChb').prop('checked')})">Find Next</button>
+            <button type="button" class="btn btn-link col-md-2" onclick="term.findPrevious($('#searchTxt').val(),{caseSensitive:  $('#matchCaseChb').prop('checked')})">Find Previous</button>
+
+      </div>
+      <div class="row">
+          <div class="iframe-container col-md-10 offset-md-1 ">
+            <iframe id="fbFrame"></iframe>
+          </div>
+      </div>
+      <div class="row">
+          &copy; 2019 Bela Hullar info@webssh.com
+      </div>
+    </div>
+   
+   <script>
+      Terminal.applyAddon(fit);
+      Terminal.applyAddon(search);
+      var term = new Terminal();
+      term.open(document.getElementById('terminal'));
+      term.fit();
+      term.write('SSH to your machine from anywhere with the SSH client running directly in your browser.');
+      term.write('\n\n\r');
+      term.write('WebSSH is SSH/SFTP client built on golang\'s SSH and SFTP library, compiled to Web Assembly to allow you to connect to your machine directly from your browser.');
+      term.write('\n\r');
+      term.write('No credentials or other plain text information is shared with our servers. Our servers only tunneling the packets from your browser to the machine you connect.');
+      term.write('They see only the same information that is visible for any router or other computer on the network when you use OpenSSH or other command line client.');
+      term.write('\n\r');
+      term.write('\n\r');
+      term.write('Just fill out the connection information and click connect to initiate the SSH session, once the remote hosts answers a pop up will show you the fingerprint of the server key and you can decide whether you want to continue with the connection.');
+      term.write('After successfully connecting you can just type your command into this Xterm.js console or browse/manage your files in the filemanager opens below the console.');
+      term.write('\n\r');
+      term.write('\n\r');
+      term.write('Source code available on github: https://github.com/hullarb/ssheasy');
+      webLinks.webLinksInit(term);
+    </script>
+    <noscript>
+        SSH to your machine from anywhere with the SSH client running directly in your browser.
+        WebSSH is SSH/SFTP client built on golang\'s SSH and SFTP library, compiled to Web Assembly to allow you to connect to your machine directly from your browser.
+        No credentials or other plain text information is shared with our servers. Our servers only tunneling the packets from your browser to the machine you connect.
+        They see only the same information that is visible for any router or other computer on the network when you use OpenSSH or other command line client.
+        Just fill out the connection information and click connect to initiate the SSH session, once the the remote hosts answers a pop up will show you the fingerprint of the server key and you can decide whether you want to continue with the connection.
+        After successfully connecting you can just type your command into this Xterm.js console or browse/manage file in the filemanager opens below the console.
+    </noscript>
+  </body>
+</html>

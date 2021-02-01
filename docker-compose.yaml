@@ -1,0 +1,57 @@
+version: "3"
+services:
+
+  web:
+    container_name: nginx
+    build:
+     context: .
+     dockerfile: ./nginx/Dockerfile
+    # image: nginx:1.17-alpine
+    restart: always
+    ports:
+      - 8080:80
+    depends_on:
+      - proxy
+    # volumes:
+    #   - ./proxy/html:/usr/share/nginx/html:ro
+    #   - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    command: nginx -g 'daemon off';
+    restart: always
+
+  proxy:
+    container_name: proxy
+    build:
+      context: ./proxy
+      dockerfile: Dockerfile
+    hostname: proxy
+    ports:
+      - 6666:6666
+    restart: always
+
+  prometheus:
+    image: prom/prometheus:v2.12.0
+    # volumes:
+    #   - ./prometheus/config/:/etc/prometheus/
+    #   - ./prometheus/data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    ports:
+      - 9090:9090
+    links:
+      - proxy
+    restart: always
+
+  grafana:
+    image: grafana/grafana
+    links:
+      - prometheus
+    ports:
+      - 3000:3000
+    volumes:
+      # - ./grafana/data:/var/lib/grafana
+      - ./grafana/provisioning/:/etc/grafana/provisioning/
+    restart: always
+
+  testssh:
+    image: rastasheep/ubuntu-sshd:18.04

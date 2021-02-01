@@ -1,0 +1,46 @@
+<!doctype html>
+<html  data-ng-app="FileManagerApp">
+  <head>
+    <title>File Browser</title>
+
+    <script src="node_modules/angular-filemanager/dep/jquery.min.js"></script>
+    <script src="node_modules/angular/angular.min.js"></script>
+    <script src="node_modules/angular-translate/dist/angular-translate.min.js"></script>
+    <script src="node_modules/ng-file-upload/dist/ng-file-upload.min.js"></script>
+    <script src="node_modules/angular-filemanager/dep/bootstrap.min.js"></script>
+    <script src="node_modules/angular-filemanager/dep/FileSaver.js"></script>
+    
+    <link rel="stylesheet" href="node_modules/angular-filemanager/dep/bootstrap.min.css" />
+    
+    <!-- angular-filemanager -->
+    <link rel="stylesheet" href="node_modules/angular-filemanager/angular-filemanager.min.css">
+    <script src="node_modules/angular-filemanager/angular-filemanager.min.js"></script>
+
+    <script type="text/javascript">
+        angular.module('FileManagerApp').config(['fileManagerConfigProvider', function (config) {
+            var defaults = config.$get();
+            config.set({
+                appName: 'angular-filemanager',
+                basePath: window.parent.home,
+                multiLang: false,
+                pickCallback: function(item) {
+                var msg = 'Picked %s "%s" for external use'
+                    .replace('%s', item.type)
+                    .replace('%s', item.fullPath());
+                window.alert(msg);
+                },
+
+                allowedActions: angular.extend(defaults.allowedActions, {
+                pickFiles: false,
+                pickFolders: false,
+                }),
+            });
+        }]);
+    </script>
+  </head>
+  <body>
+      <div class="ng-cloak">
+          <angular-filemanager></angular-filemanager>
+      </div>
+  </body>
+</html>
