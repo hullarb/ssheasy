@@ -42,9 +42,11 @@ func filesToJS(files []File) []interface{} {
 	return ret
 }
 
-func initSftp(sc *ssh.Client) (err error) {
-	sftpClient, err = sftp.NewClient(sc)
-	return err
+func initSftp(sc *ssh.Client) {
+	var err error
+	if sftpClient, err = sftp.NewClient(sc); err != nil {
+		log.Printf("cannot init sftp: %v", err)
+	}
 }
 
 func list(this js.Value, args []js.Value) interface{} {
@@ -130,6 +132,10 @@ func initFileBrowserAPI() {
 }
 
 func getwd() string {
+	if sftpClient == nil {
+		log.Printf("no sftp client")
+		return "nil"
+	}
 	wd, err := sftpClient.Getwd()
 	if err != nil {
 		log.Printf("failed to get wd: %v", err)

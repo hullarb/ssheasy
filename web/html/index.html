@@ -70,10 +70,12 @@ window.onload = function() {
     $('#fingerprintModal').modal('show')
   }
 
-  connected = function(status) {
+  connected = function(status, home) {
     $('#conPan').hide();
     $('#conInf').html(status);
-    $("#fbFrame").attr("src","browser.html");
+    if(home != "nil") { 
+      $("#fbFrame").attr("src","browser.html");
+    }
   }
 
   $(document).ready(function(){

@@ -137,8 +137,9 @@ func main() {
 			})
 			js.Global().Get("term").Call("on", "lineFeed", nlcb)
 			initSftp(sshClient)
-			js.Global().Set("home", getwd())
-			js.Global().Call("connected", fmt.Sprintf("Connected to %s@%s", usr, host))
+			h := getwd()
+			js.Global().Set("home", h)
+			js.Global().Call("connected", fmt.Sprintf("Connected to %s@%s", usr, host), h)
 		}()
 		return nil
 	})
@@ -217,9 +218,9 @@ func writeToConsole(str string) {
 
 func con(host string, port int) net.Conn {
 	l := js.Global().Get("window").Get("location")
-	url := "wss://" + l.Get("host").String() + "/proxy"
+	url := "wss://" + l.Get("host").String() + "/p"
 	if l.Get("protocol").String() == "http:" {
-		url = "ws://" + l.Get("host").String() + "/proxy"
+		url = "ws://" + l.Get("host").String() + "/p"
 	}
 	conn, err := ws.Dial(url)
 	if err != nil {
