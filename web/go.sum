@@ -27,8 +27,8 @@ github.com/google/go-cmp v0.2.0/go.mod h1:oXzfMopK8JAjlY9xF4vHSVASa0yLyX7SntLO5a
 github.com/gorilla/websocket v1.4.0 h1:WDFjx/TMzVgy9VdMMQi2K2Emtwi2QcUQsztZ/zLaH/Q=
 github.com/gorilla/websocket v1.4.0/go.mod h1:E7qHFY5m1UJ88s3WnNqhKjPHQ0heANvMoAMk2YaljkQ=
 github.com/gotestyourself/gotestyourself v2.2.0+incompatible/go.mod h1:zZKM6oeNM8k+FRljX1mnzVYeS8wiGgQyvST1/GafPbY=
-github.com/hullarb/dom v0.3.1-0.20201107211828-0ee6f8bec0bd h1:ek9CiX71gUDQYsFKrSqjBLVua8cmBHwuQPXMSQWsUuc=
-github.com/hullarb/dom v0.3.1-0.20201107211828-0ee6f8bec0bd/go.mod h1:GczJl+rQjRMDS906kAq+mYKwbmfT7nq6Izfe9CVmYto=
+github.com/hullarb/dom v0.3.1-0.20220918203219-ef18e6530529 h1:LUjssw4APLMfUng1oBjIpjPZBKZ5MILhiK75HOB5ERY=
+github.com/hullarb/dom v0.3.1-0.20220918203219-ef18e6530529/go.mod h1:GczJl+rQjRMDS906kAq+mYKwbmfT7nq6Izfe9CVmYto=
 github.com/knq/sysutil v0.0.0-20181215143952-f05b59f0f307 h1:vl4eIlySbjertFaNwiMjXsGrFVK25aOWLq7n+3gh2ls=
 github.com/knq/sysutil v0.0.0-20181215143952-f05b59f0f307/go.mod h1:BjPj+aVjl9FW/cCGiF3nGh5v+9Gd3VCgBQbod/GlMaQ=
 github.com/konsorten/go-windows-terminal-sequences v1.0.1 h1:mweAR1A6xJ3oS2pRaGiHgQ4OO8tzTaLawm8vnODuwDk=

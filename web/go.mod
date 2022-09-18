@@ -3,7 +3,7 @@ module github.com/hullarb/ssheasy/web
 go 1.17
 
 require (
-	github.com/hullarb/dom v0.3.1-0.20201107211828-0ee6f8bec0bd
+	github.com/hullarb/dom v0.3.1-0.20220918203219-ef18e6530529
 	github.com/pkg/sftp v1.13.4
 	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519
 )
