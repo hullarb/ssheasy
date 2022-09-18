@@ -3,9 +3,10 @@ module github.com/hullarb/ssheasy/proxy
 go 1.15
 
 require (
-	github.com/google/uuid v1.1.1
-	github.com/gorilla/mux v1.7.3
-	github.com/prometheus/client_golang v1.1.0
-	golang.org/x/net v0.0.0-20190918130420-a8b05e9114ab
-	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4
+	github.com/google/uuid v1.3.0
+	github.com/gorilla/mux v1.8.0
+	github.com/prometheus/client_golang v1.13.0
+	golang.org/x/net v0.0.0-20220909164309-bea034e7d591
+	golang.org/x/sys v0.0.0-20220915200043-7b5979e65e41 // indirect
+	golang.org/x/time v0.0.0-20220722155302-e5dcc9cfc0b9
 )
