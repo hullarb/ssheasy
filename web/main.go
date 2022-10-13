@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"strconv"
 	"syscall/js"
 
 	"net"
@@ -32,10 +33,10 @@ func main() {
 				return
 			}
 			host, port := args[2].String(), args[3].Int()
-			sshCon = con(host, port)
+			usr, pass, key, bypassProxy, bypassFingerprint := args[4].String(), args[5].String(), args[6].String(), args[7].Bool(), args[8].Bool()
+			sshCon = con(host, port, bypassProxy)
 			fpAccepted = make(chan bool)
 
-			usr, pass, key := args[4].String(), args[5].String(), args[6].String()
 			if pass == "" && key == "" {
 				log.Fatal("password or privatre key has to be provided")
 			}
@@ -50,10 +51,17 @@ func main() {
 				}
 				auth = append(auth, ssh.PublicKeys(signer))
 			}
+
+			hostKeyCallback := showFingerprint
+			if bypassFingerprint {
+				hostKeyCallback = func(hostname string, remote net.Addr, key ssh.PublicKey) error {
+					return nil
+				}
+			}
 			cConf := &ssh.ClientConfig{
 				User:            usr,
 				Auth:            auth,
-				HostKeyCallback: showFingerprint,
+				HostKeyCallback: hostKeyCallback,
 			}
 
 			cc, nc, r, err := ssh.NewClientConn(sshCon, host, cConf)
@@ -216,25 +224,34 @@ func writeToConsole(str string) {
 	// fmt.Printf("writeToConsole: [%s] returned\n", str)
 }
 
-func con(host string, port int) net.Conn {
+func con(host string, port int, bypassProxy bool) net.Conn {
 	l := js.Global().Get("window").Get("location")
-	url := "wss://" + l.Get("host").String() + "/p"
+	wsProtocol := "wss://"
 	if l.Get("protocol").String() == "http:" {
-		url = "ws://" + l.Get("host").String() + "/p"
+		wsProtocol = "ws://"
 	}
+	url := wsProtocol + l.Get("host").String() + "/p"
+	if bypassProxy {
+		url = wsProtocol + host + ":" + strconv.FormatInt(int64(port), 10)
+	}
+
 	conn, err := ws.Dial(url)
 	if err != nil {
 		log.Fatalf("failed to open ws: %v", err)
 	}
-	var buf bytes.Buffer
-	err = json.NewEncoder(&buf).Encode(struct {
-		Host string
-		Port int
-	}{host, port})
-	if err != nil {
-		log.Fatalf("failed to encode connection request: %v", err)
+
+	if !bypassProxy {
+		var buf bytes.Buffer
+		err = json.NewEncoder(&buf).Encode(struct {
+			Host string
+			Port int
+		}{host, port})
+		if err != nil {
+			log.Fatalf("failed to encode connection request: %v", err)
+		}
+		conn.Write(buf.Bytes())
 	}
-	conn.Write(buf.Bytes())
+
 	return conn
 }
 
