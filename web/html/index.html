@@ -146,8 +146,11 @@ window.onload = function() {
         </div>
         <div id="conPan" class="container col-11 align-self-center" > 
           <div class="row" >
-            <input id="hostInp" type="text" placeholder="Host to Connect" class="form-control col-10" value="testssh">
+            <input id="hostInp" type="text" placeholder="Host to Connect" class="form-control col-8" value="testssh">
             <input id="portInp" type="number" placeholder="Port" class="form-control col-2" value="22">
+            <label class="col-2">
+              <input id="bypassProxyInp" type="checkbox" /> Bypass proxy
+            </label>
           </div>
           <div class="row">
               <input id="usrInp" type="text" placeholder="User" class="form-control col-4" value="root">
@@ -161,7 +164,7 @@ window.onload = function() {
           </div>
           <div class="row"> 
               <button id="conBtn" type="button" class="btn btn-primary col-3" 
-                onclick="initConnection(term.rows, term.cols,$('#hostInp').val(),Number($('#portInp').val()),$('#usrInp').val(),$('#passInp').val(),$('#pkInp').val());">Connect</button>
+                onclick="initConnection(term.rows, term.cols,$('#hostInp').val(),Number($('#portInp').val()),$('#usrInp').val(),$('#passInp').val(),$('#pkInp').val(), $('#bypassProxyInp').is(':checked'), false);">Connect</button>
           </div>
         </div>
       </div>
