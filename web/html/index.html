@@ -148,7 +148,7 @@ window.onload = function() {
           <div class="row" >
             <input id="hostInp" type="text" placeholder="Host to Connect" class="form-control col-8" value="testssh">
             <input id="portInp" type="number" placeholder="Port" class="form-control col-2" value="22">
-            <label class="col-2">
+            <label title="If checked then connection is not proxied through the websocket proxy of ssheasy, but it goes directly to the provided host and port. On the provided addrees a websocket proxy is expected to listen. Useful if you have your own proxy setup (like websockify or something similar)." class="col-2">
               <input id="bypassProxyInp" type="checkbox" /> Bypass proxy
             </label>
           </div>
