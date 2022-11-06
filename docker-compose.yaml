@@ -55,3 +55,11 @@ services:
 
   testssh:
     image: rastasheep/ubuntu-sshd:18.04
+
+  websockify:
+    image: jwnmulder/websockify
+    ports:
+      - 2222:2222
+    command:
+      - '2222'
+      - 'testssh:22'
