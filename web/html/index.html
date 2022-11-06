@@ -209,6 +209,7 @@ window.onload = function() {
       term.write('\n\r');
       term.write('\n\r');
       term.write('Source code available on github: https://github.com/hullarb/ssheasy');
+      term.write('\n\r');
       webLinks.webLinksInit(term);
     </script>
     <noscript>
@@ -216,8 +217,8 @@ window.onload = function() {
         WebSSH is SSH/SFTP client built on golang\'s SSH and SFTP library, compiled to Web Assembly to allow you to connect to your machine directly from your browser.
         No credentials or other plain text information is shared with our servers. Our servers only tunneling the packets from your browser to the machine you connect.
         They see only the same information that is visible for any router or other computer on the network when you use OpenSSH or other command line client.
-        Just fill out the connection information and click connect to initiate the SSH session, once the the remote hosts answers a pop up will show you the fingerprint of the server key and you can decide whether you want to continue with the connection.
-        After successfully connecting you can just type your command into this Xterm.js console or browse/manage file in the filemanager opens below the console.
+        Just fill out the connection information and click connect to initiate the SSH session, once the remote hosts answers a pop up will show you the fingerprint of the server key and you can decide whether you want to continue with the connection.
+        After successfully connecting you can just type your command into this Xterm.js console or browse/manage your files in the filemanager opens below the console.
     </noscript>
   </body>
 </html>

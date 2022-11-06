@@ -23,7 +23,3 @@ For testing docker-compose sets up an sshd in a separate container. After starti
 
 The filemanager is based on [forked version](https://github.com/hullarb/angular-filemanager)) of [angular-filemanager](https://github.com/joni2back/angular-filemanager). The fork replaces the backend api calls with calls to the wasm sftp client.
 The fork has to be built separately and copied to the *web/html/node_modules* directory.
-
-### Golang Net fork
-
-The wasm client has a local patched copy of golangs net package in web/gonet directory. This was necessary as the golang wasm http client implementation doesn't allow proxying connections (explained [here](https://github.com/golang/go/issues/27495)). 
