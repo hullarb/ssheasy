@@ -1,4 +1,4 @@
-FROM golang:1.19.1-alpine as builder
+FROM golang:1.20.1-alpine as builder
 
 WORKDIR /go/src/web
 
@@ -8,7 +8,7 @@ COPY ./web .
 RUN GOOS=js GOARCH=wasm go build -o main.wasm
 
 
-FROM nginx:1.23.1
+FROM nginx:1.23.3
 COPY --from=builder /usr/local/go/misc/wasm/wasm_exec.js /usr/share/nginx/html/
 # Add the Nginx configuration file
 ADD ./nginx/nginx.conf /etc/nginx/nginx.conf
