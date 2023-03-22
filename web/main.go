@@ -124,26 +124,13 @@ func main() {
 
 			kcb := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 				if len(args) < 1 {
-					fmt.Println("onKey received empty args")
+					fmt.Println("onData received empty args")
 					return nil
 				}
-				// fmt.Printf("input written: %d[%v] (%v)\n", len(args), args[0], args[0].Type())
-				//	writeToConsole(args[0].String())
 				inp.Write([]byte(args[0].String()))
 				return nil
 			})
-			js.Global().Get("term").Call("on", "data", kcb)
-			nlcb := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
-				if len(args) < 1 {
-					fmt.Println("onKey received empty args")
-					return nil
-				}
-				fmt.Printf("linefeed event: %d[%v] (%v)\n", len(args), args[0], args[0].Type())
-				writeToConsole("\n")
-				inp.Write([]byte("\n"))
-				return nil
-			})
-			js.Global().Get("term").Call("on", "lineFeed", nlcb)
+			js.Global().Get("term").Call("onData", kcb)
 			initSftp(sshClient)
 			h := getwd()
 			js.Global().Set("home", h)
