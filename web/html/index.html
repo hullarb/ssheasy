@@ -71,12 +71,27 @@ window.onload = function() {
   }
 
   connected = function(status, home) {
+    showMsg('');
+    showErr('');
     $('#conPan').hide();
     $('#conInf').html(status);
     if(home != "nil") { 
       $("#fbFrame").attr("src","browser.html");
     }
   }
+
+  showMsg = function(msg) {
+    $('#errMsg').hide()
+    $('#msg').show()
+    $('#msg').html(msg);
+  } 
+
+  showErr = function(msg) {
+    $('#msg').hide();
+    $('#conBtn').prop('disabled',false);
+    $('#errMsg').show();
+    $('#errMsg').html(msg);
+  } 
 
   $(document).ready(function(){
     $('#conBtn').prop('disabled',true);
@@ -86,6 +101,8 @@ window.onload = function() {
     $('#passInp').keyup(function(){ $('#conBtn').prop('disabled', notReady() ? true : false); })
     $('#pkInp').keyup(function(){ $('#conBtn').prop('disabled', notReady() ? true : false); })
     $('#pkFile').change(pkFileOpen);
+    $('#msg').hide()
+    $('#errMsg').hide()
   });
   var home = "/";
 
@@ -164,8 +181,13 @@ window.onload = function() {
           </div>
           <div class="row"> 
               <button id="conBtn" type="button" class="btn btn-primary col-3" 
-                onclick="initConnection(term.rows, term.cols,$('#hostInp').val(),Number($('#portInp').val()),$('#usrInp').val(),$('#passInp').val(),$('#pkInp').val(), $('#bypassProxyInp').is(':checked'), false);">Connect</button>
+                onclick="$('#conBtn').prop('disabled',true);showMsg('Connecting...');initConnection(term.rows, term.cols,$('#hostInp').val(),Number($('#portInp').val()),$('#usrInp').val(),$('#passInp').val(),$('#pkInp').val(), $('#bypassProxyInp').is(':checked'), false);">Connect</button>
+              <div class="col-9">
+                  <div id="msg" class="alert alert-primary" role="alert"></div>
+                  <div id="errMsg" class="alert alert-danger" role="alert">  </div>
+              </div>
           </div>
+        
         </div>
       </div>
       <div class="row"> 

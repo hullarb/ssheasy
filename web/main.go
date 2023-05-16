@@ -34,11 +34,16 @@ func main() {
 			}
 			host, port := args[2].String(), args[3].Int()
 			usr, pass, key, bypassProxy, bypassFingerprint := args[4].String(), args[5].String(), args[6].String(), args[7].Bool(), args[8].Bool()
-			sshCon = con(host, port, bypassProxy)
+			var err error
+			sshCon, err = con(host, port, bypassProxy)
+			if err != nil {
+				js.Global().Call("showErr", fmt.Sprintf("cannot connect to host: %v", err))
+				return
+			}
 			fpAccepted = make(chan bool)
 
 			if pass == "" && key == "" {
-				log.Fatal("password or privatre key has to be provided")
+				js.Global().Call("showErr", "password or privatre key has to be provided")
 			}
 			var auth []ssh.AuthMethod
 			if pass != "" {
@@ -47,7 +52,8 @@ func main() {
 			if key != "" {
 				signer, err := ssh.ParsePrivateKey([]byte(key))
 				if err != nil {
-					log.Fatalf("failed to parse pk %v", err)
+					js.Global().Call("showErr", fmt.Sprintf("failed to parse private %v", err))
+					return
 				}
 				auth = append(auth, ssh.PublicKeys(signer))
 			}
@@ -66,28 +72,33 @@ func main() {
 
 			cc, nc, r, err := ssh.NewClientConn(sshCon, host, cConf)
 			if err != nil {
-				log.Fatalf("failed to create client conn %v", err)
+				js.Global().Call("showErr", fmt.Sprintf("failed to open ssh conn %v", err))
+				return
 			}
 
 			sshClient = ssh.NewClient(cc, nc, r)
 
 			s, err := sshClient.NewSession()
 			if err != nil {
-				log.Fatalf("failed to create new session %v", err)
+				js.Global().Call("showErr", fmt.Sprintf("failed to create new ssh session %v", err))
+				return
 			}
 
 			so, err := s.StdoutPipe()
 			if err != nil {
-				log.Fatalf("failed to pipe stdout: %v", err)
+				js.Global().Call("showErr", fmt.Sprintf("failed to open stdout: %v", err))
+				return
 			}
 			se, err := s.StderrPipe()
 			if err != nil {
-				log.Fatalf("failed to pipe stderr: %v", err)
+				js.Global().Call("showErr", fmt.Sprintf("failed to open stderr: %v", err))
+				return
 			}
 			forwardOutStreams(so, se)
 			inp, err := s.StdinPipe()
 			if err != nil {
-				log.Fatalf("failed to pipe stdinp: %v", err)
+				js.Global().Call("showErr", fmt.Sprintf("failed to open stdin: %v", err))
+				return
 			}
 
 			// Set up terminal modes
@@ -114,12 +125,14 @@ func main() {
 			rows, cols := args[0].Int(), args[1].Int()
 			log.Printf("requesting %dx%d terminal", rows, cols)
 			if err := s.RequestPty("xterm", rows, cols, modes); err != nil {
-				log.Fatalf("request for pseudo terminal failed: %s", err)
+				js.Global().Call("showErr", fmt.Sprintf("failed to request a pseudo terminal: %s", err))
+				return
 			}
 
 			// Start remote shell
 			if err := s.Shell(); err != nil {
-				log.Fatalf("failed to start shell: %s", err)
+				js.Global().Call("showErr", fmt.Sprintf("failed to start ssh shell: %s", err))
+				return
 			}
 
 			kcb := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
@@ -211,7 +224,7 @@ func writeToConsole(str string) {
 	// fmt.Printf("writeToConsole: [%s] returned\n", str)
 }
 
-func con(host string, port int, bypassProxy bool) net.Conn {
+func con(host string, port int, bypassProxy bool) (net.Conn, error) {
 	l := js.Global().Get("window").Get("location")
 	wsProtocol := "wss://"
 	if l.Get("protocol").String() == "http:" {
@@ -224,7 +237,7 @@ func con(host string, port int, bypassProxy bool) net.Conn {
 
 	conn, err := ws.Dial(url)
 	if err != nil {
-		log.Fatalf("failed to open ws: %v", err)
+		return nil, fmt.Errorf("failed to open ws: %v", err)
 	}
 
 	if !bypassProxy {
@@ -234,12 +247,26 @@ func con(host string, port int, bypassProxy bool) net.Conn {
 			Port int
 		}{host, port})
 		if err != nil {
-			log.Fatalf("failed to encode connection request: %v", err)
+			return nil, fmt.Errorf("failed to encode connection request: %v", err)
 		}
 		conn.Write(buf.Bytes())
+		var resp struct {
+			Status string `json:"status"`
+			Error  string `json:"error"`
+		}
+		if err := json.NewDecoder(conn).Decode(&resp); err != nil {
+			return nil, fmt.Errorf("failed to read connection request response: %v %v", err, resp)
+		}
+		log.Printf("received con request response: %v", resp)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read connection request response: %v", err)
+		}
+		if resp.Status != "ok" {
+			return nil, errors.New(resp.Error)
+		}
 	}
 
-	return conn
+	return conn, nil
 }
 
 func runCmd(cmd string) (string, error) {

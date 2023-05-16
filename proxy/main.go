@@ -135,12 +135,33 @@ func handleWss(wsconn *websocket.Conn) {
 		l.logf("WARNING: connecting to %s is not allowed", cr.Host)
 		return
 	}
-	conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", cr.Host, cr.Port))
+	var resp struct {
+		Status string `json:"status"`
+		Error  string `json:"error,omitempty"`
+	}
+	conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", cr.Host, cr.Port), 30*time.Second)
 	if err != nil {
-		log.Printf("failed to connect: %v", err)
+		l.logf("failed to connect: %v", err)
+		resp.Status = "failed"
+		resp.Error = err.Error()
+		if r, err := json.Marshal(resp); err != nil {
+			l.logf("failed to marshall: %v", err)
+		} else {
+			if err := websocket.Message.Send(wsconn, r); err != nil {
+				l.logf("failed to write status: %v", err)
+			}
+		}
 		return
 	}
 	defer conn.Close()
+	resp.Status = "ok"
+	if r, err := json.Marshal(resp); err != nil {
+		l.logf("failed to marshall: %v", err)
+	} else {
+		if err := websocket.Message.Send(wsconn, r); err != nil {
+			l.logf("failed to write status: %v", err)
+		}
+	}
 	totalConnections.WithLabelValues(svcHost, ips[0], fmt.Sprintf("%s:%d", cr.Host, cr.Port)).Inc()
 	ac = activeConnections.WithLabelValues(svcHost, ips[0], fmt.Sprintf("%s:%d", cr.Host, cr.Port))
 	ac.Inc()
