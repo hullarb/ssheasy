@@ -240,30 +240,32 @@ func con(host string, port int, bypassProxy bool) (net.Conn, error) {
 		return nil, fmt.Errorf("failed to open ws: %v", err)
 	}
 
-	if !bypassProxy {
-		var buf bytes.Buffer
-		err = json.NewEncoder(&buf).Encode(struct {
-			Host string
-			Port int
-		}{host, port})
-		if err != nil {
-			return nil, fmt.Errorf("failed to encode connection request: %v", err)
-		}
-		conn.Write(buf.Bytes())
-		var resp struct {
-			Status string `json:"status"`
-			Error  string `json:"error"`
-		}
-		if err := json.NewDecoder(conn).Decode(&resp); err != nil {
-			return nil, fmt.Errorf("failed to read connection request response: %v %v", err, resp)
-		}
-		log.Printf("received con request response: %v", resp)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read connection request response: %v", err)
-		}
-		if resp.Status != "ok" {
-			return nil, errors.New(resp.Error)
-		}
+	if bypassProxy {
+		return conn, nil
+	}
+
+	var buf bytes.Buffer
+	err = json.NewEncoder(&buf).Encode(struct {
+		Host string
+		Port int
+	}{host, port})
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode connection request: %v", err)
+	}
+	conn.Write(buf.Bytes())
+	var resp struct {
+		Status string `json:"status"`
+		Error  string `json:"error"`
+	}
+	if err := json.NewDecoder(conn).Decode(&resp); err != nil {
+		return nil, fmt.Errorf("failed to read connection request response: %v %v", err, resp)
+	}
+	log.Printf("received con request response: %v", resp)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read connection request response: %v", err)
+	}
+	if resp.Status != "ok" {
+		return nil, errors.New(resp.Error)
 	}
 
 	return conn, nil
