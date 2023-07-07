@@ -73,10 +73,26 @@ window.onload = function() {
   connected = function(status, home) {
     showMsg('');
     showErr('');
+    $('#msg').hide();
+    $('#errMsg').hide()
     $('#conPan').hide();
     $('#conInf').html(status);
     if(home != "nil") { 
       $("#fbFrame").attr("src","browser.html");
+    }
+  }
+
+  showReconnect = function(errorMsg) {
+    $('#connLostMsg').html("The connection to your server was interrupted: " + errorMsg + "<br>Do you want to reconnect?")
+    $('#reconnectModal').modal('show')
+  }
+
+  reconnect = function(shouldReconnect) {
+    if(shouldReconnect) {
+      initConnection(term.rows, term.cols,$('#hostInp').val(),Number($('#portInp').val()),$('#usrInp').val(),$('#passInp').val(),$('#pkInp').val(), $('#bypassProxyInp').is(':checked'), false);
+    }else {
+      $('#conPan').show();
+      $("#fbFrame").hide();
     }
   }
 
@@ -88,10 +104,11 @@ window.onload = function() {
 
   showErr = function(msg) {
     $('#msg').hide();
+    $('#conPan').show();
     $('#conBtn').prop('disabled',false);
     $('#errMsg').show();
     $('#errMsg').html(msg);
-  } 
+  }
 
   $(document).ready(function(){
     $('#conBtn').prop('disabled',true);
@@ -156,11 +173,39 @@ window.onload = function() {
           </div>
         </div>
       
+        <div id="reconnectModal" class="modal" tabindex="-1" role="dialog">
+          <div class="modal-dialog" role="document">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title">Connection lost</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close" onclick="reconnect(false);">
+                  <span aria-hidden="true">&times;</span>
+                </button>
+              </div>
+              <div id="connLostMsg" class="modal-body">
+                  The connection to your server was interrupted.
+                  Do you want to reconnect?
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-primary" data-dismiss="modal"   onclick="reconnect(true);">Yes</button>
+                <button type="button" class="btn btn-secondary" data-dismiss="modal" onclick="reconnect(false);">No</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      
     <div class="container" > 
       <div class="row" >  
         <div id="conInf" class="col-11 align-self-center" > 
-          
         </div>
+        <div class="row">
+          <div class="col-12">
+              <div id="msg" class="alert alert-primary" role="alert"></div>
+              <div id="errMsg" class="alert alert-danger" role="alert">  </div>
+          </div>
+      </div>
+        </div>
+        <div class="row" >  
         <div id="conPan" class="container col-11 align-self-center" > 
           <div class="row" >
             <input id="hostInp" type="text" placeholder="Host to Connect" class="form-control col-8" value="testssh">
@@ -182,10 +227,6 @@ window.onload = function() {
           <div class="row"> 
               <button id="conBtn" type="button" class="btn btn-primary col-3" 
                 onclick="$('#conBtn').prop('disabled',true);showMsg('Connecting...');initConnection(term.rows, term.cols,$('#hostInp').val(),Number($('#portInp').val()),$('#usrInp').val(),$('#passInp').val(),$('#pkInp').val(), $('#bypassProxyInp').is(':checked'), false);">Connect</button>
-              <div class="col-9">
-                  <div id="msg" class="alert alert-primary" role="alert"></div>
-                  <div id="errMsg" class="alert alert-danger" role="alert">  </div>
-              </div>
           </div>
         
         </div>
@@ -213,29 +254,33 @@ window.onload = function() {
     </div>
    
    <script>
-      var term = new Terminal();
-      term.loadAddon(new WebLinksAddon.WebLinksAddon());
-      const fitAddon = new FitAddon.FitAddon();
-      term.loadAddon(fitAddon);
-      const searchAddon = new SearchAddon.SearchAddon();
-      term.loadAddon(searchAddon);
-      term.open(document.getElementById('terminal'));
-      fitAddon.fit();
-      term.write('SSH to your machine from anywhere with the SSH client running directly in your browser.');
-      term.write('\n\n\r');
-      term.write('WebSSH is SSH/SFTP client built on golang\'s SSH and SFTP library, compiled to Web Assembly to allow you to connect to your machine directly from your browser.');
-      term.write('\n\r');
-      term.write('No credentials or other plain text information is shared with our servers. Our servers only tunneling the packets from your browser to the machine you connect.');
-      term.write('They see only the same information that is visible for any router or other computer on the network when you use OpenSSH or other command line client.');
-      term.write('\n\r');
-      term.write('\n\r');
-      term.write('Just fill out the connection information and click connect to initiate the SSH session, once the remote hosts answers a pop up will show you the fingerprint of the server key and you can decide whether you want to continue with the connection.');
-      term.write('After successfully connecting you can just type your command into this Xterm.js console or browse/manage your files in the filemanager opens below the console.');
-      term.write('\n\r');
-      term.write('\n\r');
-      term.write('Source code available on github: https://github.com/hullarb/ssheasy');
-      term.write('\n\r');
-      fitAddon.fit();
+      var term;
+      function initXTerm() {
+        term = new Terminal();
+        term.loadAddon(new WebLinksAddon.WebLinksAddon());
+        const fitAddon = new FitAddon.FitAddon();
+        term.loadAddon(fitAddon);
+        const searchAddon = new SearchAddon.SearchAddon();
+        term.loadAddon(searchAddon);
+        term.open(document.getElementById('terminal'));
+        fitAddon.fit();
+        term.write('SSH to your machine from anywhere with the SSH client running directly in your browser.');
+        term.write('\n\n\r');
+        term.write('WebSSH is SSH/SFTP client built on golang\'s SSH and SFTP library, compiled to Web Assembly to allow you to connect to your machine directly from your browser.');
+        term.write('\n\r');
+        term.write('No credentials or other plain text information is shared with our servers. Our servers only tunneling the packets from your browser to the machine you connect.');
+        term.write('They see only the same information that is visible for any router or other computer on the network when you use OpenSSH or other command line client.');
+        term.write('\n\r');
+        term.write('\n\r');
+        term.write('Just fill out the connection information and click connect to initiate the SSH session, once the remote hosts answers a pop up will show you the fingerprint of the server key and you can decide whether you want to continue with the connection.');
+        term.write('After successfully connecting you can just type your command into this Xterm.js console or browse/manage your files in the filemanager opens below the console.');
+        term.write('\n\r');
+        term.write('\n\r');
+        term.write('Source code available on github: https://github.com/hullarb/ssheasy');
+        term.write('\n\r');
+        fitAddon.fit();
+      }
+      initXTerm();
     </script>
     <noscript>
         SSH to your machine from anywhere with the SSH client running directly in your browser.
