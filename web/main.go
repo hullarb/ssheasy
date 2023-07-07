@@ -26,8 +26,14 @@ var fpAccepted chan bool
 
 func main() {
 
+	var onData js.Value
+
 	init := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 		go func() {
+			if !onData.Equal(js.Undefined()) {
+				log.Print("calling dispose")
+				onData.Call("dispose")
+			}
 			if len(args) < 7 {
 				log.Println("not enough argument to call init")
 				return
@@ -140,10 +146,14 @@ func main() {
 					fmt.Println("onData received empty args")
 					return nil
 				}
-				inp.Write([]byte(args[0].String()))
+				if _, err := inp.Write([]byte(args[0].String())); err != nil {
+					js.Global().Call("showReconnect", err.Error())
+					fmt.Printf("error writing to stdin: %v]\n", err)
+					return fmt.Errorf("error writing to stdin: %v]\n", err)
+				}
 				return nil
 			})
-			js.Global().Get("term").Call("onData", kcb)
+			onData = js.Global().Get("term").Call("onData", kcb)
 			initSftp(sshClient)
 			h := getwd()
 			js.Global().Set("home", h)
@@ -198,6 +208,7 @@ func forwardOutStreams(o, e io.Reader) {
 		for {
 			n, err := o.Read(ob)
 			if err != nil {
+				js.Global().Call("showReconnect", err.Error())
 				fmt.Printf("error reading from stdout: %v]\n", err)
 				return
 			}
@@ -210,6 +221,7 @@ func forwardOutStreams(o, e io.Reader) {
 		for {
 			n, err := e.Read(eb)
 			if err != nil {
+				js.Global().Call("showReconnect", err.Error())
 				fmt.Printf("error reading from stderr: %v]\n", err)
 				return
 			}
@@ -240,30 +252,32 @@ func con(host string, port int, bypassProxy bool) (net.Conn, error) {
 		return nil, fmt.Errorf("failed to open ws: %v", err)
 	}
 
-	if !bypassProxy {
-		var buf bytes.Buffer
-		err = json.NewEncoder(&buf).Encode(struct {
-			Host string
-			Port int
-		}{host, port})
-		if err != nil {
-			return nil, fmt.Errorf("failed to encode connection request: %v", err)
-		}
-		conn.Write(buf.Bytes())
-		var resp struct {
-			Status string `json:"status"`
-			Error  string `json:"error"`
-		}
-		if err := json.NewDecoder(conn).Decode(&resp); err != nil {
-			return nil, fmt.Errorf("failed to read connection request response: %v %v", err, resp)
-		}
-		log.Printf("received con request response: %v", resp)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read connection request response: %v", err)
-		}
-		if resp.Status != "ok" {
-			return nil, errors.New(resp.Error)
-		}
+	if bypassProxy {
+		return conn, nil
+	}
+
+	var buf bytes.Buffer
+	err = json.NewEncoder(&buf).Encode(struct {
+		Host string
+		Port int
+	}{host, port})
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode connection request: %v", err)
+	}
+	conn.Write(buf.Bytes())
+	var resp struct {
+		Status string `json:"status"`
+		Error  string `json:"error"`
+	}
+	if err := json.NewDecoder(conn).Decode(&resp); err != nil {
+		return nil, fmt.Errorf("failed to read connection request response: %v %v", err, resp)
+	}
+	log.Printf("received con request response: %v", resp)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read connection request response: %v", err)
+	}
+	if resp.Status != "ok" {
+		return nil, errors.New(resp.Error)
 	}
 
 	return conn, nil
