@@ -16,7 +16,6 @@ services:
     #   - ./proxy/html:/usr/share/nginx/html:ro
     #   - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     command: nginx -g 'daemon off;'
-    restart: always
 
   proxy:
     container_name: proxy

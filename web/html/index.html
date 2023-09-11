@@ -279,6 +279,12 @@ window.onload = function() {
         term.write('Source code available on github: https://github.com/hullarb/ssheasy');
         term.write('\n\r');
         fitAddon.fit();
+        const resizeObserver = new ResizeObserver((entries) => {
+          fitAddon.fit();
+          changeWindowSize(term.rows, term.cols);
+          console.log("Size changed",term.rows, term.cols);
+        });
+        resizeObserver.observe(document.getElementById('terminal'));
       }
       initXTerm();
     </script>
