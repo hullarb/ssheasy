@@ -164,6 +164,9 @@ func main() {
 	})
 
 	wc := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+		if session == nil {
+			return nil
+		}
 		rows, cols := args[0].Int(), args[1].Int()
 		if err := session.WindowChange(rows, cols); err != nil {
 			fmt.Printf("error requesting window size change: %v\n", err)
