@@ -20,6 +20,7 @@ import (
 var (
 	sshCon    net.Conn
 	sshClient *ssh.Client
+	session   *ssh.Session
 )
 
 var fpAccepted chan bool
@@ -84,24 +85,24 @@ func main() {
 
 			sshClient = ssh.NewClient(cc, nc, r)
 
-			s, err := sshClient.NewSession()
+			session, err = sshClient.NewSession()
 			if err != nil {
 				js.Global().Call("showErr", fmt.Sprintf("failed to create new ssh session %v", err))
 				return
 			}
 
-			so, err := s.StdoutPipe()
+			so, err := session.StdoutPipe()
 			if err != nil {
 				js.Global().Call("showErr", fmt.Sprintf("failed to open stdout: %v", err))
 				return
 			}
-			se, err := s.StderrPipe()
+			se, err := session.StderrPipe()
 			if err != nil {
 				js.Global().Call("showErr", fmt.Sprintf("failed to open stderr: %v", err))
 				return
 			}
 			forwardOutStreams(so, se)
-			inp, err := s.StdinPipe()
+			inp, err := session.StdinPipe()
 			if err != nil {
 				js.Global().Call("showErr", fmt.Sprintf("failed to open stdin: %v", err))
 				return
@@ -130,13 +131,13 @@ func main() {
 			// Request pseudo terminal
 			rows, cols := args[0].Int(), args[1].Int()
 			log.Printf("requesting %dx%d terminal", rows, cols)
-			if err := s.RequestPty("xterm", rows, cols, modes); err != nil {
+			if err := session.RequestPty("xterm", rows, cols, modes); err != nil {
 				js.Global().Call("showErr", fmt.Sprintf("failed to request a pseudo terminal: %s", err))
 				return
 			}
 
 			// Start remote shell
-			if err := s.Shell(); err != nil {
+			if err := session.Shell(); err != nil {
 				js.Global().Call("showErr", fmt.Sprintf("failed to start ssh shell: %s", err))
 				return
 			}
@@ -162,8 +163,21 @@ func main() {
 		return nil
 	})
 
+	wc := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+		if session == nil {
+			return nil
+		}
+		rows, cols := args[0].Int(), args[1].Int()
+		if err := session.WindowChange(rows, cols); err != nil {
+			fmt.Printf("error requesting window size change: %v\n", err)
+		}
+		fmt.Println("session window size changed")
+		return nil
+	})
+
 	js.Global().Set("initConnection", init)
 	js.Global().Set("acceptFingerprint", js.FuncOf(acceptFP))
+	js.Global().Set("changeWindowSize", wc)
 	initFileBrowserAPI()
 
 	fmt.Println("main is running")

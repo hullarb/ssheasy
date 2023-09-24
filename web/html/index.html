@@ -110,6 +110,39 @@ window.onload = function() {
     $('#errMsg').html(msg);
   }
 
+  makeTermFullScreen = function(){
+    element = $('#termContainer').get(0);
+    if (element.requestFullscreen) {
+      element.requestFullscreen();
+    } else if (element.mozRequestFullScreen) {
+      element.mozRequestFullScreen();
+    } else if (element.webkitRequestFullscreen) {
+      element.webkitRequestFullscreen(Element.ALLOW_KEYBOARD_INPUT);
+    } else if (element.msRequestFullscreen) {
+      element.msRequestFullscreen();
+    }
+  }
+
+  exitFS = function() {
+    if (document.exitFullscreen) {
+      document.exitFullscreen();
+    } else if (document.mozCancelFullScreen) {
+      document.mozCancelFullScreen();
+    } else if (document.webkitExitFullscreen) {
+      document.webkitExitFullscreen();
+    } else if (document.msExitFullscreen) {
+      document.msExitFullscreen();
+    }
+  }
+
+   toggleFullScreen = function() {
+    if (!document.fullscreenElement) {
+      makeTermFullScreen();
+    } else if (document.exitFullscreen) {
+      exitFS();
+    }
+}
+
   $(document).ready(function(){
     $('#conBtn').prop('disabled',true);
     $('#hostInp').keyup(function(){ $('#conBtn').prop('disabled', notReady() ? true : false); })
@@ -127,11 +160,6 @@ window.onload = function() {
 
     </script>
     <style>
-      #canvas {
-        width: 500px;
-        height: 300px;
-      }
-
       .iframe-container {
   overflow: hidden;
   padding-top: 56.25%;
@@ -146,7 +174,9 @@ window.onload = function() {
    top: 0;
    width: 100%;
 }
-
+.t90 {
+  height: 90%;
+}
 .row {
   padding-top: 5px;
 }
@@ -194,10 +224,8 @@ window.onload = function() {
           </div>
         </div>
       
-    <div class="container" > 
+    <div class="container-fluid" > 
       <div class="row" >  
-        <div id="conInf" class="col-11 align-self-center" > 
-        </div>
         <div class="row">
           <div class="col-12">
               <div id="msg" class="alert alert-primary" role="alert"></div>
@@ -206,7 +234,7 @@ window.onload = function() {
       </div>
         </div>
         <div class="row" >  
-        <div id="conPan" class="container col-11 align-self-center" > 
+        <div id="conPan" class="container col-10 align-self-center" > 
           <div class="row" >
             <input id="hostInp" type="text" placeholder="Host to Connect" class="form-control col-8" value="testssh">
             <input id="portInp" type="number" placeholder="Port" class="form-control col-2" value="22">
@@ -215,37 +243,39 @@ window.onload = function() {
             </label>
           </div>
           <div class="row">
-              <input id="usrInp" type="text" placeholder="User" class="form-control col-4" value="root">
-              <input id="passInp" type="password" placeholder="Password" class="form-control col-8" value="root">
+              <input id="usrInp" type="text" placeholder="User" class="form-control col-5" value="root">
+              <input id="passInp" type="password" placeholder="Password" class="form-control col-5" value="root">
           </div>
           <div class="row">
-            <textarea id="pkInp" rows=1 placeholder="Private Key" class="form-control col-9"></textarea>
-            <label class="btn btn-link col-3">
+            <textarea id="pkInp" rows=1 placeholder="Private Key" class="form-control col-7"></textarea>
+            <label class="btn btn-link col-2">
                 Select key file <input id="pkFile" type="file" hidden>
             </label>
-          </div>
-          <div class="row"> 
-              <button id="conBtn" type="button" class="btn btn-primary col-3" 
-                onclick="$('#conBtn').prop('disabled',true);showMsg('Connecting...');initConnection(term.rows, term.cols,$('#hostInp').val(),Number($('#portInp').val()),$('#usrInp').val(),$('#passInp').val(),$('#pkInp').val(), $('#bypassProxyInp').is(':checked'), false);">Connect</button>
-          </div>
-        
+            <button id="conBtn" type="button" class="btn btn-primary col-3" 
+              onclick="$('#conBtn').prop('disabled',true);showMsg('Connecting...');initConnection(term.rows, term.cols,$('#hostInp').val(),Number($('#portInp').val()),$('#usrInp').val(),$('#passInp').val(),$('#pkInp').val(), $('#bypassProxyInp').is(':checked'), false);">Connect</button>
+          </div>       
+        </div>
+      </div>
+      <div id="termContainer" class="container-fluid d-flex flex-column">
+      <div class="row flex-fill"> 
+        <div id="terminal" class="col d-flex flex-column t90">
         </div>
       </div>
       <div class="row"> 
-          <div id="terminal" class="col-12"></div>
-      </div>
-      <div class="row col-10 offset-md-1"> 
+        <div id="conInf" class="col-5 align-self-center" > 
+        </div>
             <input id="searchTxt" type="text" placeholder="Find" class="form-control col-md-3" >       
-            <div class="col-md-2" style="padding-left: 20pt;padding-top: 7px;">
+            <div class="col-md-1" style="padding-left: 20pt;padding-top: 7px;">
               <label class="form-check-label"> <input type="checkbox" class="form-check-input" id="matchCaseChb" >Match Case</label>
             </div>
-            <button type="button" class="btn btn-link col-md-2" onclick="searchAddon.findNext($('#searchTxt').val(),{caseSensitive:  $('#matchCaseChb').prop('checked')})">Find Next</button>
-            <button type="button" class="btn btn-link col-md-2" onclick="searchAddon.findPrevious($('#searchTxt').val(),{caseSensitive:  $('#matchCaseChb').prop('checked')})">Find Previous</button>
-
+            <button type="button" class="btn btn-link col-md-1" onclick="searchAddon.findNext($('#searchTxt').val(),{caseSensitive:  $('#matchCaseChb').prop('checked')})">Find Next</button>
+            <button type="button" class="btn btn-link col-md-1" onclick="searchAddon.findPrevious($('#searchTxt').val(),{caseSensitive:  $('#matchCaseChb').prop('checked')})">Find Previous</button>
+            <button type="button" class="btn btn-link col-md-1" onclick="toggleFullScreen();">Toggle Fullscreen</button>
       </div>
+    </div>
       <div class="row">
-          <div class="iframe-container col-md-10 offset-md-1 ">
-            <iframe id="fbFrame"></iframe>
+          <div class="iframe-container col-md-10 offset-md-1">
+              <iframe id="fbFrame"></iframe>
           </div>
       </div>
       <div class="row">
@@ -255,12 +285,13 @@ window.onload = function() {
    
    <script>
       var term;
+      var searchAddon;
       function initXTerm() {
         term = new Terminal();
         term.loadAddon(new WebLinksAddon.WebLinksAddon());
         const fitAddon = new FitAddon.FitAddon();
         term.loadAddon(fitAddon);
-        const searchAddon = new SearchAddon.SearchAddon();
+        searchAddon = new SearchAddon.SearchAddon();
         term.loadAddon(searchAddon);
         term.open(document.getElementById('terminal'));
         fitAddon.fit();
@@ -279,6 +310,12 @@ window.onload = function() {
         term.write('Source code available on github: https://github.com/hullarb/ssheasy');
         term.write('\n\r');
         fitAddon.fit();
+        const resizeObserver = new ResizeObserver((entries) => {
+          fitAddon.fit();
+          changeWindowSize(term.rows, term.cols);
+          console.log("Size changed",term.rows, term.cols);
+        });
+        resizeObserver.observe(document.getElementById('terminal'));
       }
       initXTerm();
     </script>
