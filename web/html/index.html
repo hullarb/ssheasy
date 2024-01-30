@@ -65,12 +65,73 @@ window.onload = function() {
     })
   }
 
+  function deleteConnectionHistoryItem(i) {
+    var history = JSON.parse(localStorage.getItem("historyList")) || [];
+    history.splice(i,1);
+    localStorage.setItem("historyList", JSON.stringify(history));
+    renderHistoryList();
+  }
+
+  function saveHistory() {
+    var user = $('#usrInp').val()
+    var host = $('#hostInp').val() 
+    var port = $("#portInp").val()
+    var bypassProxy = $('#bypassProxyInp').is(':checked')
+    var histItem = {user: user, host: host, port: port, bypassProxy: bypassProxy}
+    var history = JSON.parse(localStorage.getItem("historyList")) || [];
+    for(var i = 0, len = history.length; i < len; i++) {
+      var item = history[i]; 
+      if(item.user == user && item.host == host && item.port == port) {
+        return
+      }
+    }
+    history.push(histItem);
+    localStorage.setItem("historyList", JSON.stringify(history));
+    renderHistoryList();
+  }
+
+  function loadConnectionData(con) {
+    $('#usrInp').val(con.user)
+    $('#hostInp').val(con.host) 
+    $("#portInp").val(con.port)
+    $('#bypassProxyInp').prop('checked', con.bypassProxy)
+  }
+
+  function renderHistoryList() {
+    var itemList = JSON.parse(localStorage.getItem("historyList")) || [];
+    var listContainer = document.getElementById("historyList");
+    listContainer.innerHTML = "";
+    for(var i = 0, len = itemList.length; i < len; i++) {
+      var item = itemList[i]; 
+      conStr = item.user + "@" + item.host + ":" + item.port
+      var listItem = document.createElement("li");
+      const el = document.createElement('div');
+      el.addEventListener('click', function handleClick(event) {
+          loadConnectionData(item);
+      });
+      el.title = conStr;
+      el.appendChild(document.createTextNode(conStr));
+      var deleteBtn = document.createElement("button");
+      deleteBtn.innerHTML = "X";
+      var df = function(ind) {
+        return function() {
+          deleteConnectionHistoryItem(ind);
+        }
+      }
+      deleteBtn.addEventListener('click', df(i));
+      listItem.appendChild(deleteBtn);
+      listItem.appendChild(el);
+      listContainer.appendChild(listItem);
+    }
+  }
+
   showServerKey = function(key) {
     $('#fingerprintMsg').html("RSA key fingerprint is " + key + " <br>Are you sure you want to continue connecting (yes/no)?")
     $('#fingerprintModal').modal('show')
   }
 
   connected = function(status, home) {
+    saveHistory();
     showMsg('');
     showErr('');
     $('#msg').hide();
@@ -153,6 +214,7 @@ window.onload = function() {
     $('#pkFile').change(pkFileOpen);
     $('#msg').hide()
     $('#errMsg').hide()
+    renderHistoryList()
   });
   var home = "/";
 
@@ -179,6 +241,26 @@ window.onload = function() {
 }
 .row {
   padding-top: 5px;
+}
+
+ul {
+  list-style-type: none;
+  padding: 0;
+  width: 15rem;
+  height: 180px;
+  overflow-y: scroll;
+}
+
+li {
+  display: flex;
+}
+
+li button {
+  background: white;
+  color: red;
+  margin-right: .5rem;
+  border-radius: 10px;
+  border: none;
 }
     </style>
   </head>
@@ -233,8 +315,8 @@ window.onload = function() {
           </div>
       </div>
         </div>
-        <div class="row" >  
-        <div id="conPan" class="container col-10 align-self-center" > 
+        <div id="conPan" class="row" >  
+        <div  class="container col-8 align-self-center" > 
           <div class="row" >
             <input id="hostInp" type="text" placeholder="Host to Connect" class="form-control col-8" value="testssh">
             <input id="portInp" type="number" placeholder="Port" class="form-control col-2" value="22">
@@ -254,6 +336,11 @@ window.onload = function() {
             <button id="conBtn" type="button" class="btn btn-primary col-3" 
               onclick="$('#conBtn').prop('disabled',true);showMsg('Connecting...');initConnection(term.rows, term.cols,$('#hostInp').val(),Number($('#portInp').val()),$('#usrInp').val(),$('#passInp').val(),$('#pkInp').val(), $('#bypassProxyInp').is(':checked'), false);">Connect</button>
           </div>       
+        </div>
+        <div class="col-3">
+          <div id="historyListContainer">
+            <ul id="historyList"></ul>
+          </div>
         </div>
       </div>
       <div id="termContainer" class="container-fluid d-flex flex-column">
