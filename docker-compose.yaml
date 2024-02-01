@@ -23,6 +23,12 @@ services:
       context: ./proxy
       dockerfile: Dockerfile
     hostname: proxy
+    volumes:
+      - ./proxy/logs/:/logs/
+    command:
+      - './proxy'
+      - '-al'
+      - '/logs/connections.log'
     ports:
       - 6666:6666
     restart: always

@@ -20,19 +20,19 @@ var (
 	totalConnectionRequests = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "connection_requests_total",
 		Help: "The total number of connection requests",
-	}, []string{"host", "src"})
+	}, []string{"host"})
 	totalBytes = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "bytes_total",
 		Help: "The total number of bytes proxied",
-	}, []string{"host", "src", "dst", "dir"})
+	}, []string{"host", "dir"})
 	totalConnections = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "connections_total",
 		Help: "The total number of connections",
-	}, []string{"host", "src", "dst"})
+	}, []string{"host"})
 	activeConnections = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "connections_active",
 		Help: "The current number of active connections",
-	}, []string{"host", "src", "dst"})
+	}, []string{"host"})
 	svcHost string
 )
 
