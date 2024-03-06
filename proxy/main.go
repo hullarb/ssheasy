@@ -28,10 +28,19 @@ func main() {
 	publicAddr := flag.String("pub", ":5555", "listener address")
 	adminAddr := flag.String("priv", ":6666", "admin listener address")
 	adminKey := flag.String("adm-key", "qtIazZDhzrYERShXuYpqRx", "admin api key")
+	auditLogFile := flag.String("al", "connections.log", "log file to store connection request, if empty connection logging is disabled")
 	flag.Parse()
 	if *publicAddr == "" || *adminAddr == "" {
 		flag.PrintDefaults()
 		os.Exit(1)
+	}
+
+	if auditLogFile != nil {
+		var err error
+		auditLog, err = os.OpenFile(*auditLogFile, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+		if err != nil {
+			log.Fatalf("failed to open connection log file %s: %v", *auditLogFile, err)
+		}
 	}
 
 	wmux := websocket.Server{
@@ -104,7 +113,7 @@ func handleWss(wsconn *websocket.Conn) {
 		return
 	}
 	l.logf("handlewss from %v", ips)
-	totalConnectionRequests.WithLabelValues(svcHost, ips[0]).Inc()
+	totalConnectionRequests.WithLabelValues(svcHost).Inc()
 	err := wsconn.SetReadDeadline(time.Now().Add(2 * time.Second))
 	if err != nil {
 		log.Printf("failed to set red deadline: %v", err)
@@ -131,6 +140,7 @@ func handleWss(wsconn *websocket.Conn) {
 		return
 	}
 	l.logf("connecting to %s on port %d", cr.Host, cr.Port)
+	writeAuditLog(ips[0], cr.Host, cr.Port, "connection request")
 	if !isAllowedTarger(cr.Host) {
 		l.logf("WARNING: connecting to %s is not allowed", cr.Host)
 		return
@@ -142,6 +152,7 @@ func handleWss(wsconn *websocket.Conn) {
 	conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", cr.Host, cr.Port), 30*time.Second)
 	if err != nil {
 		l.logf("failed to connect: %v", err)
+		writeAuditLog(ips[0], cr.Host, cr.Port, "connection failed")
 		resp.Status = "failed"
 		resp.Error = err.Error()
 		if r, err := json.Marshal(resp); err != nil {
@@ -162,9 +173,10 @@ func handleWss(wsconn *websocket.Conn) {
 			l.logf("failed to write status: %v", err)
 		}
 	}
-	totalConnections.WithLabelValues(svcHost, ips[0], fmt.Sprintf("%s:%d", cr.Host, cr.Port)).Inc()
-	ac = activeConnections.WithLabelValues(svcHost, ips[0], fmt.Sprintf("%s:%d", cr.Host, cr.Port))
+	totalConnections.WithLabelValues(svcHost).Inc()
+	ac = activeConnections.WithLabelValues(svcHost)
 	ac.Inc()
+	writeAuditLog(ips[0], cr.Host, cr.Port, "connection established")
 	wsconn.PayloadType = websocket.BinaryFrame
 
 	cw, wsw := newLimters(conn, wsconn, l)
@@ -173,46 +185,53 @@ func handleWss(wsconn *websocket.Conn) {
 
 	go ping(l, wsconn, done)
 
-	alive := true
-	mu := sync.Mutex{}
+	type conStat struct {
+		dir   string
+		err   error
+		bytes int64
+	}
+
+	stats := make(chan conStat)
 
 	go func() {
 		n, err := io.Copy(&meteredWriter{
 			w: cw,
-			c: totalBytes.WithLabelValues(svcHost, ips[0], fmt.Sprintf("%s:%d", cr.Host, cr.Port), "up"),
+			c: totalBytes.WithLabelValues(svcHost, "up"),
 		}, wsconn)
-		er := "without error"
-		if err != nil {
-			er = fmt.Sprintf("with error %v", err)
-		}
-		l.logf("copying to server finished after copying %d bytes %s", n, er)
-		mu.Lock()
-		if alive {
-			close(done)
-			alive = false
-		}
-		mu.Unlock()
+		conn.Close()
+		stats <- conStat{"up", err, n}
 	}()
 	go func() {
 		n, err := io.Copy(&meteredWriter{
 			w: wsw,
-			c: totalBytes.WithLabelValues(svcHost, ips[0], fmt.Sprintf("%s:%d", cr.Host, cr.Port), "down"),
+			c: totalBytes.WithLabelValues(svcHost, "down"),
 		}, conn)
-		er := "without error"
-		if err != nil {
-			er = fmt.Sprintf("with error %v", err)
-		}
-		l.logf("copying from server finished after copying %d bytes %s", n, er)
-		mu.Lock()
-		if alive {
-			close(done)
-			alive = false
-		}
-		mu.Unlock()
+		wsconn.Close()
+		stats <- conStat{"down", err, n}
 	}()
 
-	<-done
-	l.logf("proxy quit")
+	s1 := <-stats
+	s2 := <-stats
+	if s1.dir == "up" {
+		l.logf("proxy finished copied (%d/%d)bytes anyerrors (%v,%v)", s1.bytes, s2.bytes, s1.err, s2.err)
+		writeAuditLog(ips[0], cr.Host, cr.Port, fmt.Sprintf("proxy finished copied (%d/%d)bytes anyerrors (%v,%v)", s1.bytes, s2.bytes, s1.err, s2.err))
+	} else {
+		l.logf("proxy finished copied (%d/%d)bytes anyerrors (%v,%v)", s2.bytes, s1.bytes, s2.err, s1.err)
+		writeAuditLog(ips[0], cr.Host, cr.Port, fmt.Sprintf("proxy finished copied (%d/%d)bytes anyerrors (%v,%v)", s2.bytes, s1.bytes, s2.err, s1.err))
+	}
+	close(done)
+}
+
+var auditLog io.Writer
+
+func writeAuditLog(srcIP, dstIP string, dstPort int, msg string) {
+	if auditLog == nil {
+		return
+	}
+	_, err := auditLog.Write([]byte(fmt.Sprintf("%s,%s,%s,%d,%s\n", time.Now().UTC().Format(time.RFC3339Nano), srcIP, dstIP, dstPort, msg)))
+	if err != nil {
+		log.Printf("failed to write into connection log: %v", err)
+	}
 }
 
 func ping(l logger, ws *websocket.Conn, done chan struct{}) {
