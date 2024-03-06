@@ -53,16 +53,27 @@ func main() {
 				js.Global().Call("showErr", "password or privatre key has to be provided")
 			}
 			var auth []ssh.AuthMethod
-			if pass != "" {
-				auth = append(auth, ssh.Password(pass))
-			}
 			if key != "" {
 				signer, err := ssh.ParsePrivateKey([]byte(key))
 				if err != nil {
-					js.Global().Call("showErr", fmt.Sprintf("failed to parse private %v", err))
-					return
+					if _, ok := err.(*ssh.PassphraseMissingError); ok && pass != "" {
+						signer, err = ssh.ParsePrivateKeyWithPassphrase([]byte(key), []byte(pass))
+						if err != nil {
+							js.Global().Call("showErr", fmt.Sprintf("failed to parse private key: %v", err))
+							return
+						}
+						pass = ""
+					} else {
+						if err != nil {
+							js.Global().Call("showErr", fmt.Sprintf("failed to parse private key: %v", err))
+							return
+						}
+					}
 				}
 				auth = append(auth, ssh.PublicKeys(signer))
+			}
+			if pass != "" {
+				auth = append(auth, ssh.Password(pass))
 			}
 
 			hostKeyCallback := showFingerprint
@@ -80,6 +91,8 @@ func main() {
 			cc, nc, r, err := ssh.NewClientConn(sshCon, host, cConf)
 			if err != nil {
 				js.Global().Call("showErr", fmt.Sprintf("failed to open ssh conn %v", err))
+				log.Println("closing")
+				sshCon.Close()
 				return
 			}
 
@@ -88,23 +101,27 @@ func main() {
 			session, err = sshClient.NewSession()
 			if err != nil {
 				js.Global().Call("showErr", fmt.Sprintf("failed to create new ssh session %v", err))
+				sshCon.Close()
 				return
 			}
 
 			so, err := session.StdoutPipe()
 			if err != nil {
 				js.Global().Call("showErr", fmt.Sprintf("failed to open stdout: %v", err))
+				sshCon.Close()
 				return
 			}
 			se, err := session.StderrPipe()
 			if err != nil {
 				js.Global().Call("showErr", fmt.Sprintf("failed to open stderr: %v", err))
+				sshCon.Close()
 				return
 			}
-			forwardOutStreams(so, se)
+			forwardOutStreams(so, se, sshCon)
 			inp, err := session.StdinPipe()
 			if err != nil {
 				js.Global().Call("showErr", fmt.Sprintf("failed to open stdin: %v", err))
+				sshCon.Close()
 				return
 			}
 
@@ -133,12 +150,14 @@ func main() {
 			log.Printf("requesting %dx%d terminal", rows, cols)
 			if err := session.RequestPty("xterm", rows, cols, modes); err != nil {
 				js.Global().Call("showErr", fmt.Sprintf("failed to request a pseudo terminal: %s", err))
+				sshCon.Close()
 				return
 			}
 
 			// Start remote shell
 			if err := session.Shell(); err != nil {
 				js.Global().Call("showErr", fmt.Sprintf("failed to start ssh shell: %s", err))
+				sshCon.Close()
 				return
 			}
 
@@ -216,7 +235,7 @@ func FingerprintMD5(key ssh.PublicKey) string {
 	return out
 }
 
-func forwardOutStreams(o, e io.Reader) {
+func forwardOutStreams(o, e io.Reader, con net.Conn) {
 	go func() {
 		ob := make([]byte, 2048)
 		for {
@@ -224,6 +243,7 @@ func forwardOutStreams(o, e io.Reader) {
 			if err != nil {
 				js.Global().Call("showReconnect", err.Error())
 				fmt.Printf("error reading from stdout: %v]\n", err)
+				con.Close()
 				return
 			}
 			// fmt.Printf("read from stdout %d bytes: [%s][%v]\n", n, ob[:n], ob[:n])
@@ -237,6 +257,7 @@ func forwardOutStreams(o, e io.Reader) {
 			if err != nil {
 				js.Global().Call("showReconnect", err.Error())
 				fmt.Printf("error reading from stderr: %v]\n", err)
+				con.Close()
 				return
 			}
 			fmt.Printf("read from stderr %d bytes: [%s]\n", n, eb[:n])
