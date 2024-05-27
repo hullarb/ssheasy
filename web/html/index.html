@@ -6,7 +6,7 @@
     
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
 
-    <link rel="stylesheet" href="node_modules/xterm/css/xterm.css" />
+    <link rel="stylesheet" href="node_modules/@xterm/xterm/css/xterm.css" />
 
     <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
@@ -14,10 +14,11 @@
    
 
     <!-- Xterm.js -->
-    <script src="node_modules/xterm/lib/xterm.js"></script>
-    <script src="node_modules/xterm-addon-fit/lib/xterm-addon-fit.js"></script>
-    <script src="node_modules/xterm-addon-search/lib/xterm-addon-search.js"></script>
-    <script src="node_modules/xterm-addon-web-links/lib/xterm-addon-web-links.js"></script> 
+    <script src="node_modules/@xterm/xterm/lib/xterm.js"></script>
+    <script src="node_modules/@xterm/addon-fit/lib/addon-fit.js"></script>
+    <script src="node_modules/@xterm/addon-search/lib/addon-search.js"></script>
+    <script src="node_modules/@xterm/addon-web-links/lib/addon-web-links.js"></script> 
+    <script src="node_modules/@xterm/addon-serialize/lib/addon-serialize.js"></script> 
 
   
     <script src="wasm_exec.js"></script>
@@ -203,6 +204,18 @@ window.onload = function() {
       exitFS();
     }
 }
+  downloadHistory = function(filename) {
+    var element = document.createElement('a');
+    element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(serializeAddon.serialize()));
+    element.setAttribute('download', filename);
+
+    element.style.display = 'none';
+    document.body.appendChild(element);
+
+    element.click();
+
+    document.body.removeChild(element);
+  }
 
   $(document).ready(function(){
     $('#conBtn').prop('disabled',true);
@@ -349,7 +362,7 @@ li button {
         </div>
       </div>
       <div class="row"> 
-        <div id="conInf" class="col-5 align-self-center" > 
+        <div id="conInf" class="col-4 align-self-center" > 
         </div>
             <input id="searchTxt" type="text" placeholder="Find" class="form-control col-md-3" >       
             <div class="col-md-1" style="padding-left: 20pt;padding-top: 7px;">
@@ -358,6 +371,7 @@ li button {
             <button type="button" class="btn btn-link col-md-1" onclick="searchAddon.findNext($('#searchTxt').val(),{caseSensitive:  $('#matchCaseChb').prop('checked')})">Find Next</button>
             <button type="button" class="btn btn-link col-md-1" onclick="searchAddon.findPrevious($('#searchTxt').val(),{caseSensitive:  $('#matchCaseChb').prop('checked')})">Find Previous</button>
             <button type="button" class="btn btn-link col-md-1" onclick="toggleFullScreen();">Toggle Fullscreen</button>
+            <button type="button" class="btn btn-link col-md-1" onclick="downloadHistory('ssheasy.txt');" title="Download the history of your terminal session">Download</button>
       </div>
     </div>
       <div class="row">
@@ -373,6 +387,7 @@ li button {
    <script>
       var term;
       var searchAddon;
+      var serializeAddon;
       function initXTerm() {
         term = new Terminal();
         term.loadAddon(new WebLinksAddon.WebLinksAddon());
@@ -380,6 +395,8 @@ li button {
         term.loadAddon(fitAddon);
         searchAddon = new SearchAddon.SearchAddon();
         term.loadAddon(searchAddon);
+        serializeAddon = new SerializeAddon.SerializeAddon();
+        term.loadAddon(serializeAddon);
         term.open(document.getElementById('terminal'));
         fitAddon.fit();
         term.write('SSH to your machine from anywhere with the SSH client running directly in your browser.');
