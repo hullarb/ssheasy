@@ -102,23 +102,26 @@ window.onload = function() {
     var itemList = JSON.parse(localStorage.getItem("historyList")) || [];
     var listContainer = document.getElementById("historyList");
     listContainer.innerHTML = "";
+    var df = function(ind) {
+        return function() {
+          deleteConnectionHistoryItem(ind);
+        }
+      }
+    var lf = function(item) {
+      return function(event) {
+          loadConnectionData(item);
+      };
+    }
     for(var i = 0, len = itemList.length; i < len; i++) {
       var item = itemList[i]; 
       conStr = item.user + "@" + item.host + ":" + item.port
       var listItem = document.createElement("li");
       const el = document.createElement('div');
-      el.addEventListener('click', function handleClick(event) {
-          loadConnectionData(item);
-      });
+      el.addEventListener('click', lf(item));
       el.title = conStr;
       el.appendChild(document.createTextNode(conStr));
       var deleteBtn = document.createElement("button");
       deleteBtn.innerHTML = "X";
-      var df = function(ind) {
-        return function() {
-          deleteConnectionHistoryItem(ind);
-        }
-      }
       deleteBtn.addEventListener('click', df(i));
       listItem.appendChild(deleteBtn);
       listItem.appendChild(el);
@@ -145,24 +148,7 @@ window.onload = function() {
   }
 
   base64ToUint8Array = function(base64) {
-    var decode = function(input) {
-        // Replace non-url compatible chars with base64 standard chars
-        input = input
-            .replace(/-/g, '+')
-            .replace(/_/g, '/');
-
-        // Pad out with standard base64 required padding characters
-        var pad = input.length % 4;
-        if(pad) {
-          if(pad === 1) {
-            throw new Error('InvalidLengthError: Input base64url string is the wrong length to determine padding');
-          }
-          input += new Array(5-pad).join('=');
-        }
-
-        return input;
-    }
-    const binaryString = atob(decode(base64));
+    const binaryString = atob(base64);
     const len = binaryString.length;
     const bytes = new Uint8Array(len);
     for (let i = 0; i < len; i++) {

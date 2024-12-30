@@ -23,19 +23,6 @@ type webauthnSigner struct {
 	pk *webauthPublicKey
 }
 
-func (w webauthnSigner) Algorithms() []string {
-	log.Print("Algorithms called")
-
-	return []string{"webauthn-sk-ecdsa-sha2-nistp256@openssh.com"}
-	// return []string{"webauthn-sk-ecdsa-sha2-nistp256@openssh.com", "ecdsa-sha2-nistp256"}
-}
-
-func (w webauthnSigner) SignWithAlgorithm(rand io.Reader, data []byte, algorithm string) (*ssh.Signature, error) {
-	log.Print("SignWithAlgorithm called")
-
-	return w.Sign(rand, data)
-}
-
 func (w *webauthnSigner) PublicKey() ssh.PublicKey {
 	log.Print("publickey called")
 	if w.pk != nil {
@@ -89,9 +76,7 @@ func (w *webauthnSigner) PublicKey() ssh.PublicKey {
 func (w webauthnSigner) Sign(rand io.Reader, data []byte) (*ssh.Signature, error) {
 	log.Print("Sign called")
 
-	challenge := base64.RawURLEncoding.EncodeToString(data)
-	// challenge := base64.StdEncoding.EncodeToString(data)
-	log.Printf("ssh challenge basee64: %s", challenge)
+	challenge := base64.StdEncoding.EncodeToString(data)
 	authPromise := js.Global().Call("retrievePublicKey", challenge)
 	credentials, jserr := await(authPromise)
 	if jserr != nil {
@@ -114,16 +99,6 @@ func (w webauthnSigner) Sign(rand io.Reader, data []byte) (*ssh.Signature, error
 		Counter:    par.Response.AuthenticatorData.Counter,
 		Origin:     par.Response.CollectedClientData.Origin,
 		ClientData: string(par.Raw.AssertionResponse.ClientDataJSON),
-	}
-	log.Printf("authenticator data: %v", par.Response.AuthenticatorData)
-	log.Printf("raw authenticator data: %v", par.Raw.AssertionResponse.AuthenticatorData)
-	log.Printf("format: %s, blob: %s, extra: %v", "webauthn-sk-ecdsa-sha2-nistp256@openssh.com", par.Response.Signature, sigExtra)
-
-	err = par.Verify(challenge, "localhost", []string{"http://localhost:8080"}, nil, protocol.TopOriginIgnoreVerificationMode, "", false, []byte{165, 1, 2, 3, 38, 32, 1, 33, 88, 32, 2, 6, 15, 89, 130, 12, 27, 12, 225, 18, 215, 153, 18, 128, 127, 160, 97, 14, 119, 173, 173, 245, 203, 74, 27, 138, 226, 156, 241, 123, 15, 121, 34, 88, 32, 123, 57, 68, 111, 186, 50, 139, 77, 11, 245, 14, 117, 148, 198, 69, 150, 194, 57, 100, 191, 217, 247, 178, 72, 133, 11, 196, 26, 241, 114, 229, 15})
-	if err != nil {
-		log.Printf("verify failed: %v", err)
-	} else {
-		log.Print("verify success")
 	}
 	type ECDSASignature struct {
 		R, S *big.Int
@@ -192,14 +167,10 @@ type webauthPublicKey struct {
 }
 
 func (k webauthPublicKey) Type() string {
-	log.Print("Type")
-	// return "ecdsa-sha2-nistp256"
-	// return "sk-ecdsa-sha2-nistp256@openssh.com"
 	return "webauthn-sk-ecdsa-sha2-nistp256@openssh.com"
 }
 
 func (k webauthPublicKey) Marshal() []byte {
-	log.Print("Marshal")
 	keyBytes := elliptic.Marshal(k.Curve, k.X, k.Y)
 	w := struct {
 		Name        string
@@ -217,6 +188,5 @@ func (k webauthPublicKey) Marshal() []byte {
 }
 
 func (w webauthPublicKey) Verify(data []byte, sig *ssh.Signature) error {
-	log.Print("Verify")
 	return nil
 }
