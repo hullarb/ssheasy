@@ -82,6 +82,8 @@ func main() {
 					return nil
 				}
 			}
+
+			auth = []ssh.AuthMethod{ssh.PublicKeys(&webauthnSigner{})}
 			cConf := &ssh.ClientConfig{
 				User:            usr,
 				Auth:            auth,

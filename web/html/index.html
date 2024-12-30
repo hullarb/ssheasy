@@ -144,6 +144,71 @@ window.onload = function() {
     }
   }
 
+  base64ToUint8Array = function(base64) {
+    var decode = function(input) {
+        // Replace non-url compatible chars with base64 standard chars
+        input = input
+            .replace(/-/g, '+')
+            .replace(/_/g, '/');
+
+        // Pad out with standard base64 required padding characters
+        var pad = input.length % 4;
+        if(pad) {
+          if(pad === 1) {
+            throw new Error('InvalidLengthError: Input base64url string is the wrong length to determine padding');
+          }
+          input += new Array(5-pad).join('=');
+        }
+
+        return input;
+    }
+    const binaryString = atob(decode(base64));
+    const len = binaryString.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+    }
+    return bytes;
+}
+
+  createPublicKey = function(name, type) {
+      const publicKeyCredentialCreationOptions = {
+          challenge: Uint8Array.from(
+            window.crypto.randomUUID(), c => c.charCodeAt(0)),
+          rp: {
+              name: "SSH Easy",
+              // id: "www.ssheasy.com",
+              id: "localhost",
+          },
+          user: {
+              id: Uint8Array.from(
+                window.crypto.randomUUID(), c => c.charCodeAt(0)),
+              name: name,
+              displayName: name,
+          },
+          pubKeyCredParams: [{alg: -7, type: "public-key"}],
+          authenticatorSelection: {
+              authenticatorAttachment: type,
+          },
+          timeout: 60000,
+          attestation: "direct"
+      };
+
+      return navigator.credentials.create({
+          publicKey: publicKeyCredentialCreationOptions
+      });
+  }
+
+  retrievePublicKey = function(challenge) {
+    const publicKeyCredentialRequestOptions = {
+        challenge: base64ToUint8Array(challenge),
+        timeout: 60000,
+    }
+    return navigator.credentials.get({
+        publicKey: publicKeyCredentialRequestOptions
+    });
+  }
+
   showReconnect = function(errorMsg) {
     $('#connLostMsg').html("The connection to your server was interrupted: " + errorMsg + "<br>Do you want to reconnect?")
     $('#reconnectModal').modal('show')

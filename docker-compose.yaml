@@ -61,6 +61,15 @@ services:
   testssh:
     image: rastasheep/ubuntu-sshd:18.04
 
+  testopenssh:
+    image: opensshdbg 
+    # image: linuxserver/openssh-server
+    environment:
+      - PUBLIC_KEY=webauthn-sk-ecdsa-sha2-nistp256@openssh.com AAAAK3dlYmF1dGhuLXNrLWVjZHNhLXNoYTItbmlzdHAyNTZAb3BlbnNzaC5jb20AAAAIbmlzdHAyNTYAAABBBOuWZWpP23RIAfaa+7sMwxyqJgdRBi0t1w5gbknQwB0RADTZaCmSjkkWkNUXQHWbuQfQuMd7QARaOylbG1RRje0AAAAPd3d3LnNzaGVhc3kuY29t
+      - LOG_STDOUT=true
+    volumes:
+      - ./ssh_conf:/config
+
   websockify:
     image: jwnmulder/websockify
     ports:
