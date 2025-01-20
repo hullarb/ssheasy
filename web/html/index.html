@@ -369,6 +369,9 @@ window.onload = function() {
    top: 0;
    width: 100%;
 }
+.nopad {
+  padding-left:0
+}
 .t90 {
   height: 90%;
 }
@@ -512,14 +515,16 @@ li button {
               </label>
           </div>
           <div class="row">
-            <div class="form-group col-3">
+            <div class="form-group col-3 nopad">
               <label for="webauthnKeySelect"></label>
               <select class="form-control" id="webauthnKeySelect">
                 <option selected>Select Webauthn Key</option>
               </select>
             </div>
             <button type="button" class="btn btn-link col-3" onclick="showCreatePublicKey();">Create Webauthn Key</button>
-            <div class="col-3"></div>
+            <div class="col-3">
+              <a type="button" class="btn btn-link col-3" href="webauthn.html" target="_blank">Learn more</a>
+            </div>
             <button id="conBtn" type="button" class="btn btn-primary col-3" 
               onclick="$('#conBtn').prop('disabled',true);showMsg('Connecting...');initConnection(term.rows, term.cols,$('#hostInp').val(),Number($('#portInp').val()),$('#usrInp').val(),$('#passInp').val(),$('#pkInp').val(), $('#bypassProxyInp').is(':checked'), false, $('#webauthnKeySelect').val() > -1);">Connect</button>
           </div>   
