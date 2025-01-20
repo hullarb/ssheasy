@@ -25,34 +25,6 @@ type webauthnSigner struct {
 
 func (w *webauthnSigner) PublicKey() ssh.PublicKey {
 	log.Print("publickey called")
-	if w.pk != nil {
-		return w.pk
-	}
-	// authPromise := js.Global().Call("createPublicKey", "testX", "platform")
-	// //	authPromise := js.Global().Call("retrievePublicKey", "bla")
-	// credentials, jserr := await(authPromise)
-	// if jserr != nil {
-	// 	panic(fmt.Sprintf("failed to retrieve public key: %v", jserr[0].String()))
-	// }
-	// log.Printf("credentials: %c", credentials)
-	// credsJSON := js.Global().Get("JSON").Call("stringify", credentials[0]).String()
-	// // credsJSON := credentials[0].Call("toJSON").String()
-	// log.Printf("keyjson: %s", credsJSON)
-	// par, err := protocol.ParseCredentialRequestResponseBytes([]byte(credsJSON))
-	// if err != nil {
-	// 	panic(fmt.Sprintf("failed to parse credential: %v", err))
-	// }
-	// log.Printf("par: %v", par)
-	// pub := par.Response.AuthenticatorData.AttData.CredentialPublicKey
-	// log.Printf("pub: %v", pub)
-	// key, err := webauthncose.ParsePublicKey(pub)
-	// if err != nil {
-	// 	panic(fmt.Sprintf("failed to parse public key: %v", err))
-	// }
-	hostname := js.Global().Get("window").Get("location").Get("hostname").String()
-	w.pk = sshPublicKey(webauthncose.EC2PublicKeyData{}, hostname)
-	// w.pk = sshPublicKey(key.(webauthncose.EC2PublicKeyData), "www.ssheasy.com")
-	log.Printf("public key: %s", ssh.MarshalAuthorizedKey(w.pk))
 	return w.pk
 }
 
@@ -116,20 +88,18 @@ func (w webauthnSigner) Sign(rand io.Reader, data []byte) (*ssh.Signature, error
 	}, nil
 }
 
-func sshPublicKey(pkd webauthncose.EC2PublicKeyData, app string) *webauthPublicKey {
-	log.Printf("X: %s", big.NewInt(0).SetBytes(pkd.XCoord).String())
-	log.Printf("Y: %s", big.NewInt(0).SetBytes(pkd.YCoord).String())
-	x, _ := big.NewInt(0).SetString("915332718881236216343503727686696663433558083113212520683142960042271772537", 10)
-	y, _ := big.NewInt(0).SetString("55735662989348674394100010821163900858284910692873159266134640480559220057359", 10)
+func sshPublicKey(X, Y, hostName string) *webauthPublicKey {
+	x, _ := big.NewInt(0).SetString(X, 10)
+	y, _ := big.NewInt(0).SetString(Y, 10)
 	return &webauthPublicKey{
 		PublicKey: ecdsa.PublicKey{
 			Curve: elliptic.P256(),
 			X:     x,
+			Y:     y,
 			// X:     big.NewInt(0).SetBytes(pkd.XCoord),
-			Y: y,
 			// Y:     big.NewInt(0).SetBytes(pkd.YCoord),
 		},
-		application: app,
+		application: hostName,
 	}
 }
 
@@ -190,3 +160,29 @@ func (k webauthPublicKey) Marshal() []byte {
 func (w webauthPublicKey) Verify(data []byte, sig *ssh.Signature) error {
 	return nil
 }
+
+var parsePublicKey = js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+	credsJSON := args[0].String()
+	log.Printf("keyjson: %s", credsJSON)
+	par, err := protocol.ParseCredentialRequestResponseBytes([]byte(credsJSON))
+	if err != nil {
+		panic(fmt.Sprintf("failed to parse credential: %v", err))
+	}
+	log.Printf("par: %v", par)
+	pub := par.Response.AuthenticatorData.AttData.CredentialPublicKey
+	log.Printf("pub: %v", pub)
+	key, err := webauthncose.ParsePublicKey(pub)
+	if err != nil {
+		panic(fmt.Sprintf("failed to parse public key: %v", err))
+	}
+	hostname := js.Global().Get("window").Get("location").Get("hostname").String()
+	pkd := key.(webauthncose.EC2PublicKeyData)
+	pk := sshPublicKey(big.NewInt(0).SetBytes(pkd.XCoord).String(), big.NewInt(0).SetBytes(pkd.YCoord).String(), hostname)
+	return js.ValueOf(map[string]interface{}{
+		"sshKey":   string(ssh.MarshalAuthorizedKey(pk)),
+		"hostName": hostname,
+		"x":        big.NewInt(0).SetBytes(pkd.XCoord).String(),
+		"y":        big.NewInt(0).SetBytes(pkd.YCoord).String(),
+		"ID":       base64.StdEncoding.EncodeToString(par.RawID),
+	})
+})

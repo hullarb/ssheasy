@@ -40,7 +40,7 @@ window.onload = function() {
   });
   notReady = function() {
     return  $("portInp").val() == "" || $('#hostInp').val() == "" || $('#usrInp').val() == "" ||
-      ($('#passInp').val() == "" && $('#pkInp').val() == "")
+      ($('#passInp').val() == "" && $('#pkInp').val() == "" && $('#webauthnKeySelect').val() == -1) 
   }
   pkFileOpen = function(evt) {
     const input = event.target
@@ -78,11 +78,12 @@ window.onload = function() {
     var host = $('#hostInp').val() 
     var port = $("#portInp").val()
     var bypassProxy = $('#bypassProxyInp').is(':checked')
-    var histItem = {user: user, host: host, port: port, bypassProxy: bypassProxy}
+    var wKey = $('#webauthnKeySelect').val();
+    var histItem = {user: user, host: host, port: port, bypassProxy: bypassProxy, webAuthnKey: wKey}
     var history = JSON.parse(localStorage.getItem("historyList")) || [];
     for(var i = 0, len = history.length; i < len; i++) {
       var item = history[i]; 
-      if(item.user == user && item.host == host && item.port == port) {
+      if(item.user == user && item.host == host && item.port == port && item.bypassProxy == bypassProxy && (item.webAuthnKey == wKey || (item.webAuthnKey == undefined && wKey == -1))) {
         return
       }
     }
@@ -96,6 +97,9 @@ window.onload = function() {
     $('#hostInp').val(con.host) 
     $("#portInp").val(con.port)
     $('#bypassProxyInp').prop('checked', con.bypassProxy)
+    if(con.webAuthnKey != undefined) {
+      $('#webauthnKeySelect').val(con.webAuthnKey )
+    }
   }
 
   function renderHistoryList() {
@@ -156,15 +160,22 @@ window.onload = function() {
     }
     return bytes;
 }
-
+  showCreatePublicKey = function() {
+    var canCreate = function() {
+      return $('#wauthnKeyName').val() != ""
+    }
+    $('#wauthnKeyName').keyup(function(){ $('#wauthnKeyCreateBtn').prop('disabled', canCreate() ? false : true); })
+    $('#wauthnKeyCreateBtn').prop('disabled',true)
+    $('#createKeyModal').modal('show');
+  }
+  
   createPublicKey = function(name, type) {
       const publicKeyCredentialCreationOptions = {
           challenge: Uint8Array.from(
             window.crypto.randomUUID(), c => c.charCodeAt(0)),
           rp: {
               name: "SSH Easy",
-              // id: "www.ssheasy.com",
-              id: "localhost",
+              id: window.location.hostname,
           },
           user: {
               id: Uint8Array.from(
@@ -172,7 +183,7 @@ window.onload = function() {
               name: name,
               displayName: name,
           },
-          pubKeyCredParams: [{alg: -7, type: "public-key"}],
+          pubKeyCredParams: [{alg: -7, type: "public-key"}], // -7: ES256 https://www.iana.org/assignments/cose/cose.xhtml#algorithms
           authenticatorSelection: {
               authenticatorAttachment: type,
           },
@@ -180,15 +191,71 @@ window.onload = function() {
           attestation: "direct"
       };
 
-      return navigator.credentials.create({
+      navigator.credentials.create({
           publicKey: publicKeyCredentialCreationOptions
-      });
+      }).then(function(creds) {
+        var pk = parsePublicKey(JSON.stringify(creds))
+        showMsg('Copy paster the following public key into your servers <i>authorized_keys</i> file: <code>' + pk.sshKey + '</code>')
+        pk.name = name
+        pk.type = type
+        console.log(pk)
+        saveWebauthnKey(pk);
+      })
+  }
+
+  function saveWebauthnKey(pk) {
+    var keys = JSON.parse(localStorage.getItem("webauthnKeys")) || [];
+    keys.push(pk);
+    localStorage.setItem("webauthnKeys", JSON.stringify(keys));
+    renderWebauthnKeySelector();
+  }
+
+  function renderWebauthnKeySelector() {
+    var itemList = JSON.parse(localStorage.getItem("webauthnKeys")) || [];
+    var listContainer = $('#webauthnKeySelect');
+    listContainer.empty()
+    listContainer.append($('<option>', {
+        value: -1,
+        text: "Select Webauthn Key"
+    }));
+    for(var i = 0, len = itemList.length; i < len; i++) {
+      var pk = itemList[i]; 
+      listContainer.append($('<option>', {
+          value: i,
+          text: pk.name
+      }));
+    }
+    $('#webauthnKeySelect').on('change', function(e){
+      if (this.value == null || this.value == -1) {
+        showMsg('') 
+        return
+      }
+      var pk = itemList[this.value]; 
+      showMsg('Selected public key: <code>' + pk.sshKey + '</code>')
+    });
+  }
+
+  getSelectedWebauthnKey = function() {
+    var itemList = JSON.parse(localStorage.getItem("webauthnKeys"));
+    return itemList[$('#webauthnKeySelect').val()]
   }
 
   retrievePublicKey = function(challenge) {
+    if($('#webauthnKeySelect').val() == -1){
+      console.log("No key selected")
+      return Promise.reject("No key selected")
+    }
+    pk = getSelectedWebauthnKey()
+    var rawID = base64ToUint8Array(pk.ID)
     const publicKeyCredentialRequestOptions = {
         challenge: base64ToUint8Array(challenge),
         timeout: 60000,
+        allowCredentials: [
+            {
+                type: "public-key",
+                id: rawID,
+            }
+        ]
     }
     return navigator.credentials.get({
         publicKey: publicKeyCredentialRequestOptions
@@ -202,7 +269,7 @@ window.onload = function() {
 
   reconnect = function(shouldReconnect) {
     if(shouldReconnect) {
-      initConnection(term.rows, term.cols,$('#hostInp').val(),Number($('#portInp').val()),$('#usrInp').val(),$('#passInp').val(),$('#pkInp').val(), $('#bypassProxyInp').is(':checked'), false);
+      initConnection(term.rows, term.cols,$('#hostInp').val(),Number($('#portInp').val()),$('#usrInp').val(),$('#passInp').val(),$('#pkInp').val(), $('#bypassProxyInp').is(':checked'), false, $('#webauthnKeySelect').val() > -1);
     }else {
       $('#conPan').show();
       $("#fbFrame").hide();
@@ -275,10 +342,12 @@ window.onload = function() {
     $('#usrInp').keyup(function(){ $('#conBtn').prop('disabled', notReady() ? true : false); })
     $('#passInp').keyup(function(){ $('#conBtn').prop('disabled', notReady() ? true : false); })
     $('#pkInp').keyup(function(){ $('#conBtn').prop('disabled', notReady() ? true : false); })
+    $("#webauthnKeySelect").change(function() { $('#conBtn').prop('disabled', notReady() ? true : false); });
     $('#pkFile').change(pkFileOpen);
     $('#msg').hide()
     $('#errMsg').hide()
     renderHistoryList()
+    renderWebauthnKeySelector()
   });
   var home = "/";
 
@@ -368,6 +437,50 @@ li button {
               </div>
             </div>
           </div>
+        </div>   
+          
+        <div id="createKeyModal" class="modal" tabindex="-1" role="dialog">
+          <div class="modal-dialog" role="document">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title">Create a Webauthn key</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                  <span aria-hidden="true">&times;</span>
+                </button>
+              </div>
+              <div  class="modal-body">
+                <form>
+                <div class="form-group row">
+                  <label class="col-sm-4 col-form-label"> Name of the key </label>
+                  <div class="col-sm-8">
+                    <input id="wauthnKeyName" type="text"  class="form-control" title="The name you can use later to select the key">
+                  </div>
+                </div>
+                <div class="form-group row">
+                  <label class="col-sm-4 col-form-label"> Type of the key </label>
+                  <div class="col-sm-8">
+                  <div class="form-check-inline">
+                    <input class="form-check-input" type="radio" name="wauthnKeyType" id="wauthnKeyTypePlatform" value="platform" checked>
+                    <label class="form-check-label" for="wauthnKeyTypePlatform" title="The key is stored and managed by the current browser">
+                      Platform
+                    </label>
+                  </div>
+                  <div class="form-check">
+                    <input class="form-check-input" type="radio" name="wauthnKeyType" id="wauthnKeyTypeCrossPlatform " value="cross-platform">
+                    <label class="form-check-label" for="wauthnKeyTypeCrossPlatform" title="The key is stored and managed by an external device, eg. your phone or YubiKey">
+                      Cross-platform
+                    </label>
+                  </div>
+                  </div>
+                </div>
+              </form>
+              </div>
+              <div class="modal-footer">
+                <button id="wauthnKeyCreateBtn" type="button" class="btn btn-primary" data-dismiss="modal"   onclick="createPublicKey($('#wauthnKeyName').val(),$('input[name=\'wauthnKeyType\']:checked').val());">Create</button>
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+              </div>
+            </div>
+          </div>
         </div>
       
     <div class="container-fluid" > 
@@ -377,29 +490,39 @@ li button {
               <div id="msg" class="alert alert-primary" role="alert"></div>
               <div id="errMsg" class="alert alert-danger" role="alert">  </div>
           </div>
-      </div>
         </div>
-        <div id="conPan" class="row" >  
+      </div>
+      <div id="conPan" class="row" >  
         <div  class="container col-8 align-self-center" > 
           <div class="row" >
-            <input id="hostInp" type="text" placeholder="Host to Connect" class="form-control col-8" value="testssh">
+            <input id="usrInp" type="text" placeholder="User" class="form-control col-3" value="root">
+            <input id="hostInp" type="text" placeholder="Host to Connect" class="form-control col-5" value="testssh">
             <input id="portInp" type="number" placeholder="Port" class="form-control col-2" value="22">
-            <label title="If checked then connection is not proxied through the websocket proxy of ssheasy, but it goes directly to the provided host and port. On the provided addrees a websocket proxy is expected to listen. Useful if you have your own proxy setup (like websockify or something similar)." class="col-2">
-              <input id="bypassProxyInp" type="checkbox" /> Bypass proxy
-            </label>
+            <div class="col-2">
+              <label title="If checked then connection is not proxied through the websocket proxy of ssheasy, but it goes directly to the provided host and port. On the provided addrees a websocket proxy is expected to listen. Useful if you have your own proxy setup (like websockify or something similar).">
+                <input id="bypassProxyInp" type="checkbox" /> Bypass proxy
+              </label>
+            </div>
           </div>
           <div class="row">
-              <input id="usrInp" type="text" placeholder="User" class="form-control col-5" value="root">
-              <input id="passInp" type="password" placeholder="Password or Passphrase" class="form-control col-5" value="root">
+              <input id="passInp" type="password" placeholder="Password/Passphrase" class="form-control col-3" value="root">
+              <textarea id="pkInp" rows=1 placeholder="Private Key" class="form-control col-5"></textarea>
+              <label class="btn btn-link col-2">
+                  Select key file <input id="pkFile" type="file" hidden>
+              </label>
           </div>
           <div class="row">
-            <textarea id="pkInp" rows=1 placeholder="Private Key" class="form-control col-7"></textarea>
-            <label class="btn btn-link col-2">
-                Select key file <input id="pkFile" type="file" hidden>
-            </label>
+            <div class="form-group col-3">
+              <label for="webauthnKeySelect"></label>
+              <select class="form-control" id="webauthnKeySelect">
+                <option selected>Select Webauthn Key</option>
+              </select>
+            </div>
+            <button type="button" class="btn btn-link col-3" onclick="showCreatePublicKey();">Create Webauthn Key</button>
+            <div class="col-3"></div>
             <button id="conBtn" type="button" class="btn btn-primary col-3" 
-              onclick="$('#conBtn').prop('disabled',true);showMsg('Connecting...');initConnection(term.rows, term.cols,$('#hostInp').val(),Number($('#portInp').val()),$('#usrInp').val(),$('#passInp').val(),$('#pkInp').val(), $('#bypassProxyInp').is(':checked'), false);">Connect</button>
-          </div>       
+              onclick="$('#conBtn').prop('disabled',true);showMsg('Connecting...');initConnection(term.rows, term.cols,$('#hostInp').val(),Number($('#portInp').val()),$('#usrInp').val(),$('#passInp').val(),$('#pkInp').val(), $('#bypassProxyInp').is(':checked'), false, $('#webauthnKeySelect').val() > -1);">Connect</button>
+          </div>   
         </div>
         <div class="col-3">
           <div id="historyListContainer">

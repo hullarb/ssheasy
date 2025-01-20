@@ -40,7 +40,7 @@ func main() {
 				return
 			}
 			host, port := args[2].String(), args[3].Int()
-			usr, pass, key, bypassProxy, bypassFingerprint := args[4].String(), args[5].String(), args[6].String(), args[7].Bool(), args[8].Bool()
+			usr, pass, key, bypassProxy, bypassFingerprint, useWebauthKey := args[4].String(), args[5].String(), args[6].String(), args[7].Bool(), args[8].Bool(), args[9].Bool()
 			var err error
 			sshCon, err = con(host, port, bypassProxy)
 			if err != nil {
@@ -49,8 +49,8 @@ func main() {
 			}
 			fpAccepted = make(chan bool)
 
-			if pass == "" && key == "" {
-				js.Global().Call("showErr", "password or privatre key has to be provided")
+			if pass == "" && key == "" && !useWebauthKey {
+				js.Global().Call("showErr", "provide a password or a privatre key or use webauthn key")
 			}
 			var auth []ssh.AuthMethod
 			if key != "" {
@@ -72,8 +72,17 @@ func main() {
 				}
 				auth = append(auth, ssh.PublicKeys(signer))
 			}
+
 			if pass != "" {
 				auth = append(auth, ssh.Password(pass))
+			}
+
+			if useWebauthKey {
+				key := js.Global().Call("getSelectedWebauthnKey")
+				x := key.Get("x").String()
+				y := key.Get("y").String()
+				hostName := key.Get("hostName").String()
+				auth = []ssh.AuthMethod{ssh.PublicKeys(&webauthnSigner{sshPublicKey(x, y, hostName)})}
 			}
 
 			hostKeyCallback := showFingerprint
@@ -83,7 +92,6 @@ func main() {
 				}
 			}
 
-			auth = []ssh.AuthMethod{ssh.PublicKeys(&webauthnSigner{})}
 			cConf := &ssh.ClientConfig{
 				User:            usr,
 				Auth:            auth,
@@ -200,6 +208,7 @@ func main() {
 	js.Global().Set("acceptFingerprint", js.FuncOf(acceptFP))
 	js.Global().Set("changeWindowSize", wc)
 	initFileBrowserAPI()
+	js.Global().Set("parsePublicKey", parsePublicKey)
 
 	fmt.Println("main is running")
 
