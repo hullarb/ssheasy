@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Webauthn support</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+        h2 {
+            color: #555;
+        }
+        p {
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <h1>Web Authentication (WebAuthn) based SSH authentication suppor is here!</h1>
+    <h2>Create passkeys that are securly stored by your system and make your SSH access more secure</h2>
+    <p>
+       Everyone knows that passwords are a pain. They are hard to remember, easy to guess, and often not secure enough. That's why 
+       key based authentication is usually prefered for SSH access. But even that is not perfect. Keys can be stolen, lost, specially
+       when they are used in a browser based client. 
+    </p>
+    <p>
+        <a href="https://en.wikipedia.org/wiki/WebAuthn">WebAuthn</a> is a new standard that allows you to create secure keys that are stored in your system.
+        These keys are fully managed by your system (OS, browser, mobile, usb device), you cannot even retrieve them, but you can ask the system to perform
+        the necessary authentication operations. This way, you can use your system as a secure key store and authenticate to your SSH servers without the pain of managing the keys itself.
+    </p>
+    <p>
+        WebSSH client now supports WebAuthn based SSH authentication. You can create your keys on the UI, decide whether you want to create a local system managed key 
+        or one that is managed by an external device (like a usb key or your phone), and use them to authenticate to your SSH servers.
+        Once you created a new key the page will show the public key of your new key pair and you need to add it to the authorized_keys file of your server.
+    </p>
+    <p>
+        NOTE: webauthn authentication requires support from the server as well, thus your server needs to run a fairly recent version of OpenSSH server (V8.4 or greater) and the server needs to be configured with the support.
+        To enable webauthn based authentication on your server, you need to add the following line to your sshd_config file: PubkeyAcceptedAlgorithms=+webauthn-sk-ecdsa-sha2-nistp256@openssh.com
+    </p>
+</body>
+</html>

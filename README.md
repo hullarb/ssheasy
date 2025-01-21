@@ -13,6 +13,10 @@ Additionaly prometheus and grafana is set up as well to monitor the connections 
 
 For testing docker-compose sets up an sshd in a separate container. After starting up the stack with `docker-compose up` open http://localhost:8080 in your browser and use the host testssh with user root and password root.
 
+### Testing Webauthn
+
+After building the project and creating a webauthn key copy the displayed public key to the `ssh_conf/authirized_keys` file and start the testopenssh service in the docker compose if you have not started it yet. User name is `linuxserver.io` hostname: `testopenssh` port: `2222`.  
+
 ## Project structure
 
 * nginx: web server config, Dockerfile for building the wasm ssh/sftp client

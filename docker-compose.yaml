@@ -61,6 +61,13 @@ services:
   testssh:
     image: rastasheep/ubuntu-sshd:18.04
 
+  testopenssh:
+    image: linuxserver/openssh-server
+    environment:
+      - LOG_STDOUT=true
+    volumes:
+      - ./ssh_conf:/config
+
   websockify:
     image: jwnmulder/websockify
     ports:
