@@ -15,7 +15,7 @@ For testing docker-compose sets up an sshd in a separate container. After starti
 
 ### Testing Webauthn
 
-After building the project and creating a webauthn key copy the displayed public key to the `ssh_conf/authirized_keys` file and start the testopenssh service in the docker compose if you have not started it yet. User name is `linuxserver.io` hostname: `testopenssh` port: `2222`.  
+After building the project and creating a webauthn key copy the displayed public key to the `ssh_conf/authorized_keys` file and start the testopenssh service in the docker compose if you have not started it yet. User name is `linuxserver.io` hostname: `testopenssh` port: `2222`.  
 
 ## Project structure
 
