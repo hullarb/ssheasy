@@ -143,12 +143,24 @@ window.onload = function() {
     showMsg('');
     showErr('');
     $('#msg').hide();
-    $('#errMsg').hide()
+    $('#errMsg').hide();
+    $('#conBtn').prop('disabled',false); // Re-enable connect button in case it was disabled
     $('#conPan').hide();
     $('#conInf').html(status);
     if(home != "nil") { 
       $("#fbFrame").attr("src","browser.html");
+      updateFileBrowserVisibility(true);
+    } else {
+      updateFileBrowserVisibility(false);
+      $("#fbFrame").attr("src","about:blank"); // Clear iframe if no home
     }
+  }
+
+  function updateFileBrowserVisibility(show) {
+    const fileBrowserRow = $('#fileBrowserRow');
+    const toggleBtn = $('#toggleFileBrowserBtn');
+    show ? fileBrowserRow.removeClass('d-none') : fileBrowserRow.addClass('d-none');
+    toggleBtn.text(show ? 'Hide File Browser' : 'Show File Browser');
   }
 
   base64ToUint8Array = function(base64) {
@@ -272,7 +284,8 @@ window.onload = function() {
       initConnection(term.rows, term.cols,$('#hostInp').val(),Number($('#portInp').val()),$('#usrInp').val(),$('#passInp').val(),$('#pkInp').val(), $('#bypassProxyInp').is(':checked'), false, $('#webauthnKeySelect').val() > -1);
     }else {
       $('#conPan').show();
-      $("#fbFrame").hide();
+      updateFileBrowserVisibility(false); // Hide file browser
+      $("#fbFrame").attr("src","about:blank"); // Clear iframe
     }
   }
 
@@ -346,6 +359,10 @@ window.onload = function() {
     $('#pkFile').change(pkFileOpen);
     $('#msg').hide()
     $('#errMsg').hide()
+    updateFileBrowserVisibility(false);
+    $('#toggleFileBrowserBtn').on('click', function() {
+        updateFileBrowserVisibility($('#fileBrowserRow').hasClass('d-none'));
+    });
     renderHistoryList()
     renderWebauthnKeySelector()
   });
@@ -553,8 +570,13 @@ li button {
             <button type="button" class="btn btn-link col-md-1" onclick="downloadHistory('ssheasy.txt');" title="Download the history of your terminal session">Download</button>
       </div>
     </div>
-      <div class="row">
-          <div class="iframe-container col-md-10 offset-md-1">
+    <div class="row mt-2 mb-1">
+          <div class="col-12 text-right">
+              <button id="toggleFileBrowserBtn" type="button" class="btn btn-sm btn-outline-secondary">Show File Browser</button>
+          </div>
+      </div>
+      <div id="fileBrowserRow" class="row d-none"> <!-- fileBrowserRow starts hidden -->
+                <div class="iframe-container col-md-10 offset-md-1">
               <iframe id="fbFrame"></iframe>
           </div>
       </div>
