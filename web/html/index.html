@@ -140,29 +140,104 @@ window.onload = function() {
 
   connected = function(status, home) {
     saveHistory();
-    showMsg('');
-    showErr('');
-    $('#msg').hide();
+    // Explicitly hide messages and ensure conPan is hidden before calculations
+    $('#msg').html('').hide();
     $('#errMsg').hide();
-    $('#conBtn').prop('disabled',false); // Re-enable connect button in case it was disabled
     $('#conPan').hide();
+    $('#conBtn').prop('disabled',false); // Re-enable connect button
+
+    // Defer height calculation to allow DOM to settle, especially when called from Wasm
+    setTimeout(function() {
+        const headerRow = $('#headerRow');
+        const footerRow = $('#footerRow');
+        const mainContentArea = $('#mainContentArea');
+
+        let headerHeight = 0;
+        // Ensure elements exist and are visible before getting height
+        if (headerRow.length && headerRow.is(':visible')) {
+            headerHeight = headerRow.outerHeight(true) || 0;
+        }
+
+        let footerHeight = 0;
+        if (footerRow.length && footerRow.is(':visible')) {
+            footerHeight = footerRow.outerHeight(true) || 0;
+        }
+        
+        const viewportHeight = window.innerHeight; // Use viewport height directly
+
+        // Calculate available height for mainContentArea
+        const availableHeight = viewportHeight - headerHeight - footerHeight;
+                
+        if (availableHeight > 0) {
+            mainContentArea.css('height', availableHeight + 'px');
+        } else {
+            console.warn("JS: Calculated available height for mainContentArea is not positive. Check element selections, visibility, and window.innerHeight.");
+        }
+
+        // After setting mainContentArea height, if terminal is already visible, fit it.
+        if (typeof fitAddon !== 'undefined' && fitAddon && typeof term !== 'undefined' && term && $('#terminal').is(':visible')) {
+            fitAddon.fit();
+            console.log("JS: fitAddon.fit() called after initial mainContentArea height set.");
+        }
+    }, 100); // 100ms delay, can be adjusted
+
     $('#conInf').html(status);
     if(home != "nil") { 
-      $("#fbFrame").attr("src","browser.html");
       updateFileBrowserVisibility(true);
     } else {
       updateFileBrowserVisibility(false);
-      $("#fbFrame").attr("src","about:blank"); // Clear iframe if no home
     }
   }
 
   function updateFileBrowserVisibility(show) {
     const fileBrowserRow = $('#fileBrowserRow');
     const toggleBtn = $('#toggleFileBrowserBtn');
-    show ? fileBrowserRow.removeClass('d-none') : fileBrowserRow.addClass('d-none');
-    toggleBtn.text(show ? 'Hide File Browser' : 'Show File Browser');
-  }
+    const terminalEl = document.getElementById('terminal'); // Get the raw DOM element for offsetHeight
+    const termContainerEl = document.getElementById('termContainer');
+    const mainContentAreaEl = document.getElementById('mainContentArea');
+    const bodyContainerFluidEl = document.body.querySelector('.container-fluid'); // The main one
+    const iframeContainer = fileBrowserRow.find('.iframe-container'); // Get the parent of the iframe
 
+
+    if (show) { // File browser is being shown
+      console.log('Attempting to show file browser.');
+      fileBrowserRow.removeClass('d-none');
+      toggleBtn.text('Hide File Browser');
+       // Re-attach the iframe if it was detached
+      if (detachedFileBrowserIframe) {
+           iframeContainer.append(detachedFileBrowserIframe);
+           detachedFileBrowserIframe = null; // Clear the stored reference
+      }
+      // Ensure the src is set (handles initial load and re-showing)
+      $("#fbFrame").attr("src","browser.html");
+    } else { // File browser is being hidden
+      console.log('Attempting to hide file browser.');
+      fileBrowserRow.addClass('d-none');
+      toggleBtn.text('Show File Browser');
+      const fileBrowserIframe = $('#fbFrame'); // Get the iframe element
+
+      // Detach the iframe from the DOM
+      if (fileBrowserIframe.length > 0) {
+          detachedFileBrowserIframe = fileBrowserIframe.detach(); // Detach and store
+      }
+    }
+
+    // After changing layout, tell xterm.js to refit.
+    // #terminal's parent containers should have resized due to CSS flex rules.
+    // Use setTimeout to allow the browser to reflow the layout first.
+    if (typeof fitAddon !== 'undefined' && fitAddon && typeof term !== 'undefined' && term) {
+      setTimeout(() => {
+        const currentTerminalHeight = terminalEl.offsetHeight;
+        if (currentTerminalHeight > 0) {
+            fitAddon.fit();
+            console.log(`After fitAddon.fit(): terminal rows: ${term.rows}, cols: ${term.cols}, new offsetHeight: ${terminalEl.offsetHeight}px`);
+        } else {
+            console.log('Terminal element has no height or is not visible, skipping fit.');
+        }
+      }, 150); // Increased delay to 150ms for more robust reflow waiting
+    }
+  }
+  var detachedFileBrowserIframe = null; 
   base64ToUint8Array = function(base64) {
     const binaryString = atob(base64);
     const len = binaryString.length;
@@ -285,7 +360,6 @@ window.onload = function() {
     }else {
       $('#conPan').show();
       updateFileBrowserVisibility(false); // Hide file browser
-      $("#fbFrame").attr("src","about:blank"); // Clear iframe
     }
   }
 
@@ -372,6 +446,45 @@ window.onload = function() {
 
     </script>
     <style>
+      html {
+        height: 100%;
+        overflow: hidden; /* Prevent scrollbars on html that might affect vh/100% calculations */
+      }
+      body {
+        height: 100vh; /* Directly use viewport height for the body */
+        margin: 0;
+        overflow: hidden; /* Prevent scrollbars on body */
+        display: flex; /* Make body a flex container */
+        flex-direction: column; /* So its direct child can grow to fill it */
+      }
+      /* Target the main outermost container-fluid */
+      body > .container-fluid:first-of-type {
+        height: 100%; /* Make this container take 100% of the body's height */
+        display: flex;
+        flex-direction: column;
+        min-height: 0; /* Still important for flex children within this container */
+      }
+      #termContainer {
+        flex-grow: 1 !important; /* Allows #termContainer to expand (added !important) */
+        /* d-flex flex-column is usually set by class, but ensure it for CSS specificity */
+        flex-shrink: 1; /* Allow terminal container to shrink if needed */
+        min-height: 0; /* Allow shrinking below content size, can help flex-grow */
+      }
+      /* NEW: Wrapper for terminal and file browser sections */
+      #mainContentArea {
+        display: flex;
+        flex-direction: column;
+        /* height will be set by JavaScript after connection */
+        overflow: hidden; /* Prevent its own scrollbars if content overflows, children handle scroll */
+        min-height: 0; /* Allow shrinking, good practice for nested flex */
+      }
+
+      #fileBrowserRow {
+        flex-basis: 350px; /* Suggest an initial height for the file browser row */
+        flex-shrink: 1;   /* Allow file browser row to shrink if space is tight */
+        overflow: hidden; /* Prevent its content from overflowing and causing scroll issues */
+      }
+
       .iframe-container {
   overflow: hidden;
   padding-top: 56.25%;
@@ -388,9 +501,6 @@ window.onload = function() {
 }
 .nopad {
   padding-left:0
-}
-.t90 {
-  height: 90%;
 }
 .row {
   padding-top: 5px;
@@ -415,8 +525,8 @@ li button {
   border-radius: 10px;
   border: none;
 }
-    </style>
-  </head>
+</style>
+</head>
   <body>
       <div id="fingerprintModal" class="modal" tabindex="-1" role="dialog">
           <div class="modal-dialog" role="document">
@@ -504,7 +614,7 @@ li button {
         </div>
       
     <div class="container-fluid" > 
-      <div class="row" >  
+      <div id="headerRow" class="row" >  
         <div class="row">
           <div class="col-12">
               <div id="msg" class="alert alert-primary" role="alert"></div>
@@ -552,48 +662,52 @@ li button {
           </div>
         </div>
       </div>
-      <div id="termContainer" class="container-fluid d-flex flex-column">
-      <div class="row flex-fill"> 
-        <div id="terminal" class="col d-flex flex-column t90">
-        </div>
-      </div>
-      <div class="row"> 
-        <div id="conInf" class="col-4 align-self-center" > 
-        </div>
-            <input id="searchTxt" type="text" placeholder="Find" class="form-control col-md-3" >       
-            <div class="col-md-1" style="padding-left: 20pt;padding-top: 7px;">
-              <label class="form-check-label"> <input type="checkbox" class="form-check-input" id="matchCaseChb" >Match Case</label>
+      <div id="mainContentArea"> <!-- NEW WRAPPER for terminal and file browser -->
+        <!-- termContainer will now grow due to flex-grow: 1 in CSS (within mainContentArea) -->
+        <div id="termContainer" class="d-flex flex-column"> <!-- REMOVED container-fluid -->
+          <div class="row flex-fill" style="min-height: 0;"> <!-- This row should take up most of termContainer's height -->
+            <!-- #terminal will take 100% height of its flex-fill parent -->
+            <div id="terminal" class="col d-flex flex-column h-100" style="min-height: 0;">
             </div>
-            <button type="button" class="btn btn-link col-md-1" onclick="searchAddon.findNext($('#searchTxt').val(),{caseSensitive:  $('#matchCaseChb').prop('checked')})">Find Next</button>
-            <button type="button" class="btn btn-link col-md-1" onclick="searchAddon.findPrevious($('#searchTxt').val(),{caseSensitive:  $('#matchCaseChb').prop('checked')})">Find Previous</button>
-            <button type="button" class="btn btn-link col-md-1" onclick="toggleFullScreen();">Toggle Fullscreen</button>
-            <button type="button" class="btn btn-link col-md-1" onclick="downloadHistory('ssheasy.txt');" title="Download the history of your terminal session">Download</button>
-      </div>
-    </div>
-    <div class="row mt-2 mb-1">
-          <div class="col-12 text-right">
-              <button id="toggleFileBrowserBtn" type="button" class="btn btn-sm btn-outline-secondary">Show File Browser</button>
           </div>
-      </div>
-      <div id="fileBrowserRow" class="row d-none"> <!-- fileBrowserRow starts hidden -->
-                <div class="iframe-container col-md-10 offset-md-1">
-              <iframe id="fbFrame"></iframe>
+          <div class="row">
+            <div id="conInf" class="col-3 align-self-center" >
+            </div>
+                <input id="searchTxt" type="text" placeholder="Find" class="form-control col-md-3" >
+                <div class="col-md-1" style="padding-left: 20pt;padding-top: 7px;">
+                  <label class="form-check-label"> <input type="checkbox" class="form-check-input" id="matchCaseChb" >Match Case</label>
+                </div>
+                <button type="button" class="btn btn-link col-md-1" onclick="searchAddon.findNext($('#searchTxt').val(),{caseSensitive:  $('#matchCaseChb').prop('checked')})">Find Next</button>
+                <button type="button" class="btn btn-link col-md-1" onclick="searchAddon.findPrevious($('#searchTxt').val(),{caseSensitive:  $('#matchCaseChb').prop('checked')})">Find Previous</button>
+                <button type="button" class="btn btn-link col-md-1" onclick="toggleFullScreen();">Toggle Fullscreen</button>
+                <button id="toggleFileBrowserBtn" type="button" class="btn btn-link col-md-1">Show File Browser</button>
+                <button type="button" class="btn btn-link col-md-1" onclick="downloadHistory('ssheasy.txt');" title="Download the history of your terminal session">Download</button>
           </div>
-      </div>
-      <div class="row">
+        </div>
+
+        <div id="fileBrowserRow" class="row d-none"> <!-- fileBrowserRow starts hidden, also inside mainContentArea -->
+                    <div class="iframe-container col-md-10 offset-md-1">
+                  <iframe id="fbFrame"></iframe>
+              </div>
+          </div>
+      </div> <!-- End of mainContentArea -->
+
+      <div id="footerRow" class="row"> <!-- Footer remains a direct child of the outermost container-fluid -->
           &copy; 2019 Bela Hullar info@webssh.com
       </div>
-    </div>
+    </div> <!-- End of outermost container-fluid -->
    
    <script>
       var term;
       var searchAddon;
-      var serializeAddon;
+      var serializeAddon; 
+      var fitAddon; // Declare fitAddon here to make it accessible in updateFileBrowserVisibility
+
       function initXTerm() {
         term = new Terminal();
         term.loadAddon(new WebLinksAddon.WebLinksAddon());
-        const fitAddon = new FitAddon.FitAddon();
-        term.loadAddon(fitAddon);
+        fitAddon = new FitAddon.FitAddon(); // Initialize the shared fitAddon
+        term.loadAddon(fitAddon); 
         searchAddon = new SearchAddon.SearchAddon();
         term.loadAddon(searchAddon);
         serializeAddon = new SerializeAddon.SerializeAddon();
