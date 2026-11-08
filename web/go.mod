@@ -1,8 +1,8 @@
 module github.com/hullarb/ssheasy/web
 
-go 1.23
+go 1.27
 
-toolchain go1.23.2
+toolchain go1.27.3
 
 require (
 	github.com/hullarb/dom v0.3.1-0.20220918203219-ef18e6530529
