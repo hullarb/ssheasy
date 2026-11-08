@@ -1,4 +1,4 @@
-FROM golang:1.23.3-alpine as builder
+FROM golang:1.27.3-alpine as builder
 
 WORKDIR /go/src/web
 
@@ -8,8 +8,8 @@ COPY ./web .
 RUN GOOS=js GOARCH=wasm go build -o main.wasm
 
 
-FROM nginx:1.23.3
-COPY --from=builder /usr/local/go/misc/wasm/wasm_exec.js /usr/share/nginx/html/
+FROM nginx:1.31.8
+COPY --from=builder /usr/local/go/lib/wasm/wasm_exec.js /usr/share/nginx/html/
 # Add the Nginx configuration file
 ADD ./nginx/nginx.conf /etc/nginx/nginx.conf
 # Copy over static assets from the client application
